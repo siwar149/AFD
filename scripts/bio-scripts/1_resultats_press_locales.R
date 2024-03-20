@@ -33,12 +33,13 @@ rd_source <- rd_species %>%
              left_join(rd_threats,by=c("taxonid"="id")) # data complète des informations de la redlist
 length(unique(rd_source$taxonid)) # il y a 153,732 espèces au total
 
-### 2-/ 0n retire les espèces qui n'ont pas de menaces de renseignées
+### 2-/ On retire les espèces qui n'ont pas de menaces de renseignées
 
 rd <- rd_source %>% drop_na(result.code)
 length(unique(rd$taxonid)) # 82,366 espèces avec une catégorie de menace renseignée
 
-### 3-/ On ne garde que les espèces d'amphibiens, les oiseaux et les mammiféres (peut-être pourrait-on garder les reptiles? source: https://www.iucnredlist.org/resources/summary-statistics#Summary%20Tables)
+### 3-/ On ne garde que les espèces d'amphibiens, les oiseaux et les mammiféres 
+#(peut-être pourrait-on garder les reptiles? source: https://www.iucnredlist.org/resources/summary-statistics#Summary%20Tables)
 
 rd <- rd %>% filter(class_name %in% c("AVES","MAMMALIA","AMPHIBIA")) 
 length(unique(rd$taxonid)) # 13,525 espèces restantes
@@ -58,7 +59,8 @@ length(unique(rd$taxonid)) # toujours 7,374 espèces
 rd <- rd %>% filter(result.timing %in% c("Future","Ongoing"))
 length(unique(rd$taxonid)) # 7,340 espèces restantes
 
-### 7-/ Eviter un double comptage des menaces niveau 2 (2 chiffres) et 3 (3 chiffres): suppréssion de toutes les menaces de 2 chiffres à moins que la menace de 3 chiffres ne soit pas renseignée
+### 7-/ Eviter un double comptage des menaces niveau 2 (2 chiffres) et 3 (3 chiffres):
+# suppréssion de toutes les menaces de 2 chiffres à moins que la menace de 3 chiffres ne soit pas renseignée
 
 rd$level <- nchar(gsub("\\D", "", rd$result.code))
 rd$TG <- substr(rd$result.code, 1, 3)
