@@ -7,16 +7,30 @@ library(readxl)
 
 setwd(dir="/home/onyxia/work/R_light/")
 
+bucket = "siwar"
+set_wd <- "data/bio/rds"
+
 ####################################################################
 ### I-/ Trie des données redlist - Méthode d'Irwin et al. (2022) ###
 ####################################################################
 
 ### 1-/ Les données brutes de la redlist
 
-rd_threats <- readRDS("data/rds/redlist_threats_to_species.rds") %>% filter(!id=="TRUE") %>% mutate(id = as.integer(id)) # data menaces IUCN de la redlist
-rd_species <- readRDS("data/rds/Red_list_species.rds") # data espèces de la redlist
+#rd_threats <- readRDS("data/rds/redlist_threats_to_species.rds") %>% filter(!id=="TRUE") %>% mutate(id = as.integer(id)) # data menaces IUCN de la redlist
+#rd_species <- readRDS("data/rds/Red_list_species.rds") # data espèces de la redlist
 
-rd_source <- rd_species %>% select(taxonid, scientific_name,category,class_name) %>% left_join(rd_threats,by=c("taxonid"="id")) # data complète des informations de la redlist
+rd_threats <- s3read_using(FUN = readRDS,
+             object = paste(set_wd,"/redlist_threats_to_species.rds",sep=""),
+             bucket = bucket, opts = list("region" = "")) %>% 
+             mutate(id = as.integer(id)) # data menaces IUCN de la redlist
+
+rd_species <- s3read_using(FUN = readRDS,
+                           object = paste(set_wd,"/Red_list_species.rds",sep=""),
+                           bucket = bucket, opts = list("region" = ""))
+
+rd_source <- rd_species %>% 
+             select(taxonid, scientific_name,category,class_name) %>%
+             left_join(rd_threats,by=c("taxonid"="id")) # data complète des informations de la redlist
 length(unique(rd_source$taxonid)) # il y a 153,732 espèces au total
 
 ### 2-/ 0n retire les espèces qui n'ont pas de menaces de renseignées
