@@ -109,7 +109,10 @@ median_slow_decline <- STAR %>%  filter(result.severity == "Slow, Significant De
 median_rap_decline <- STAR %>%  filter(result.severity == "Rapid Declines") %>%  summarize(median_TS = median(TS, na.rm = TRUE)) %>% pull()
 median_very_rapdecline <- STAR %>%  filter(result.severity == "Very Rapid Declines") %>%  summarize(median_TS = median(TS, na.rm = TRUE)) %>% pull()
 
-STAR <-  STAR %>% dplyr::mutate(TS=if_else((is.na(result.scope) | result.scope == "Unknown") & (result.severity == "Negligible declines" | result.severity == "No decline"),median_no_decline, if_else((is.na(result.scope) | result.scope == "Unknown") & (result.severity == "Slow, Significant Declines" | result.severity == "Causing/Could cause fluctuations"),median_slow_decline, if_else((is.na(result.scope) | result.scope == "Unknown") & result.severity == "Rapid Declines",median_rap_decline, if_else((is.na(result.scope) | result.scope == "Unknown") & result.severity == "Very Rapid Declines",median_very_rapdecline, TS)))))
+STAR <-  STAR %>% dplyr::mutate(TS=if_else((is.na(result.scope) | result.scope == "Unknown") & (result.severity == "Negligible declines" | result.severity == "No decline"),median_no_decline,
+                                   if_else((is.na(result.scope) | result.scope == "Unknown") & (result.severity == "Slow, Significant Declines" | result.severity == "Causing/Could cause fluctuations"),median_slow_decline,
+                                   if_else((is.na(result.scope) | result.scope == "Unknown") & result.severity == "Rapid Declines", median_rap_decline,
+                                   if_else((is.na(result.scope) | result.scope == "Unknown") & result.severity == "Very Rapid Declines",median_very_rapdecline, TS)))))
 
 # Quand result.severity == "Unknown"
 
@@ -117,7 +120,9 @@ median_mino <- STAR %>%  filter(result.scope == "Minority (<50%)") %>%  summariz
 median_majo <- STAR %>%  filter(result.scope == "Majority (50-90%)") %>%  summarize(median_TS = median(TS, na.rm = TRUE)) %>% pull()
 median_whole <- STAR %>%  filter(result.scope == "Whole (>90%)") %>%  summarize(median_TS = median(TS, na.rm = TRUE)) %>% pull()
 
-STAR <-  STAR %>% dplyr::mutate(TS=if_else((is.na(result.severity) | result.severity == "Unknown") & result.scope == "Minority (<50%)",median_mino, if_else((is.na(result.severity) | result.severity == "Unknown") & result.scope == "Majority (50-90%)",median_majo, if_else((is.na(result.severity) | result.severity == "Unknown") & result.scope == "Whole (>90%)",median_whole, TS))))
+STAR <-  STAR %>% dplyr::mutate(TS=if_else((is.na(result.severity) | result.severity == "Unknown") & result.scope == "Minority (<50%)", median_mino,
+                                   if_else((is.na(result.severity) | result.severity == "Unknown") & result.scope == "Majority (50-90%)", median_majo,
+                                   if_else((is.na(result.severity) | result.severity == "Unknown") & result.scope == "Whole (>90%)", median_whole, TS))))
 
 # Quand result.scope == "Unknown" & result.severity == "Unknown"
 
