@@ -266,12 +266,12 @@ Q <- s3read_using(FUN = readRDS,
                            bucket = bucket, opts = list("region" = ""))
 
 label_Q <- as.data.frame(s3read_using(FUN = readRDS,
-                                      object = paste(set_wd,"/label_IO.rds",sep=""),
+                                      object = paste(set_wd,"/label_Q.rds",sep=""),
                                       bucket = bucket, opts = list("region" = "")))
 
 ### 2-/ Identifier les pressions analysables
 
-pressions_gloria <- data.frame(sum=colSums(Q)) %>% #ASK JULIE
+pressions_gloria <- data.frame(sum=rowSums(Q)) %>%
   cbind(label_Q) %>% #this has changed
   tibble::rownames_to_column("Lfd_Nr") %>%
   filter(!sum==0) %>%
@@ -285,14 +285,20 @@ pressions_analysables <- inner_join(pressions_gloria,pressions_biotope) %>% pull
 
 ### 3-/ Filter les pressions analysables dans Q
 
-Q_abs <- Q[,pressions_analysables]
-colnames(Q_abs) <- pressions_analysables
+Q_abs <- Q[pressions_analysables,]
+rownames(Q_abs) <- pressions_analysables
 
-Q_abs <- as.data.frame(Q_abs) %>% tibble::rownames_to_column("Lfd_Nr") %>% pivot_longer(!Lfd_Nr,names_to="pays_secteur",values_to="pressure")
+Q_abs <- as.data.frame(Q_abs) %>%
+  tibble::rownames_to_column("Lfd_Nr") %>%
+  pivot_longer(!Lfd_Nr,names_to="pays_secteur",values_to="pressure")
 
 label_pays_secteur <- label_IO %>% mutate(pays_secteur=paste0("V",1:n()))
 
-Q_abs <- Q_abs %>% left_join(label_pays_secteur) %>% filter(!pressure==0) %>% select(-pays_secteur) %>% mutate(Lfd_Nr=as.numeric(Lfd_Nr))
+Q_abs <- Q_abs %>%
+  left_join(label_pays_secteur) %>%
+  filter(!pressure==0) %>%
+  select(-pays_secteur) %>%
+  mutate(Lfd_Nr=as.numeric(Lfd_Nr))
 
 rm(Q,pressions_biotope,pressions_gloria,label_pays_secteur)
 
