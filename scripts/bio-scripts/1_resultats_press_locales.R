@@ -151,7 +151,7 @@ rm(list = grep("^median", ls(), value = TRUE),rd)
 #amphi_source3 <- read_excel("data/species_range/Gymnophiona_range_data.xlsx") %>% select(id_no,surf_sp, iso3,name) %>% rename(Surf_sp=surf_sp)
 #bird_source <- read_excel("data/species_range/Birds.xlsx") %>% select(sisid,Surf_sp,iso3,name) %>% rename(id_no=sisid)
 
-species_range <- rbind(mammal_source,amphi_source1,amphi_source2,amphi_source3,bird_source)
+#species_range <- rbind(mammal_source,amphi_source1,amphi_source2,amphi_source3,bird_source)
 
 mammal_source <- s3read_using(FUN = read_excel,
                            object = paste("data/bio/species_range","/terrestrial_mammals_range_data.xlsx",sep=""),
@@ -258,8 +258,8 @@ rm(biotope_source1,biotope_source2,corr_press,biotope_source)
 
 ### 1-/ Données satéllitaires de gloria en valeur absolues pour l'année 2019
 
-Q <- readRDS("data/rds/QT_2019.rds") 
-label_Q <- as.data.frame(readRDS("data/rds/label_Q.rds"))
+#Q <- readRDS("data/rds/QT_2019.rds") 
+#label_Q <- as.data.frame(readRDS("data/rds/label_Q.rds"))
 
 Q <- s3read_using(FUN = readRDS,
                            object = paste(set_wd,"/QT_2019.rds",sep=""),
