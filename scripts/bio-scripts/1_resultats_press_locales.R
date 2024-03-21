@@ -309,8 +309,12 @@ rm(Q,pressions_biotope,pressions_gloria,label_pays_secteur)
 
 ### 1-/ Retirer de la liste de biotope les pressions non analysables 
 
-redlist_press <- STAR %>% select(taxonid,result.code,STARij) %>% left_join(biotope,by=c("result.code"="threat")) %>% filter(Lfd_Nr %in% pressions_analysables) %>%
-  select(-pressure) %>% filter(STARij>0)
+redlist_press <- STAR %>%
+  select(taxonid,result.code,STARij) %>%
+  left_join(biotope,by=c("result.code"="threat")) %>%
+  filter(Lfd_Nr %in% pressions_analysables) %>%
+  select(-pressure) %>%
+  filter(STARij>0)
 
 rm(STAR,biotope)
 
@@ -328,9 +332,15 @@ press <- label_Q %>% tibble::rownames_to_column("Lfd_Nr") %>% filter(Lfd_Nr %in%
 
 AR6 <- read_excel("data/CO2_AR6.xlsx") %>% rename(Sat_indicator=Formula) # gaz à effet de serre d'après l'AR6
 
-press <- press %>% mutate(Sat_indicator = gsub("_total_EDGAR_consistent'|'c_|'|_10_mee|_excl_short_cycle_org_c_total_EDGAR_consistent |_org_short_cycle_c_total_EDGAR_consistent", "", Sat_indicator))
+press <- press %>%
+  mutate(Sat_indicator = gsub("_total_EDGAR_consistent'|'c_|'|_10_mee|_excl_short_cycle_org_c_total_EDGAR_consistent |_org_short_cycle_c_total_EDGAR_consistent", "", Sat_indicator))
 
-press_globales <- AR6 %>% left_join(press) %>% drop_na(Lfd_Nr) %>% mutate(Lfd_Nr=as.numeric(Lfd_Nr)) %>% arrange(Lfd_Nr) %>% pull(Lfd_Nr) 
+press_globales <- AR6 %>%
+  left_join(press) %>%
+  drop_na(Lfd_Nr) %>%
+  mutate(Lfd_Nr=as.numeric(Lfd_Nr)) %>%
+  arrange(Lfd_Nr) %>%
+  pull(Lfd_Nr) 
 
 ### 2-/ Ajouter les secteurs dans la data d'aire de répartition
 
@@ -339,24 +349,35 @@ repartition <- subset(repartition, taxonid %in% redlist_press$taxonid) # on ne g
 
 ### 3-/ Calculer la part de pression générée par les secteurs qui possaident l'espèce 
 
-press_locales <-setdiff(pressions_analysables, press_globales) # créer un vecteur de pressions locales
+press_locales <- setdiff(pressions_analysables, press_globales) # créer un vecteur de pressions locales
 
 result <- redlist_press %>% left_join(repartition)
 result <- result %>% left_join(Q_abs) %>% drop_na(pressure)
 
 rm(label_IO,AR6,label_Q,species)
 
-r1_w_ex <- result %>% group_by(result.code,taxonid) %>% mutate(nbr_press_per_threat=length(unique(Lfd_Nr))) %>%
-  mutate(STARij=STARij/nbr_press_per_threat) %>% ungroup() %>% group_by(taxonid,Lfd_Nr,iso,country,sector,range,pressure) %>% summarise(STARij=sum(STARij)) %>% 
+r1_w_ex <- result %>%
+  group_by(result.code,taxonid) %>%
+  mutate(nbr_press_per_threat=length(unique(Lfd_Nr))) %>%
+  mutate(STARij=STARij/nbr_press_per_threat) %>%
+  ungroup() %>%
+  group_by(taxonid,Lfd_Nr,iso,country,sector,range,pressure) %>%
+  summarise(STARij=sum(STARij)) %>% 
   group_by(taxonid,Lfd_Nr,iso) %>% 
   mutate(part_press=pressure/sum(pressure)) 
 
-r_p <- r1_w_ex %>% ungroup() %>% select(taxonid,Lfd_Nr,iso,range) %>% distinct() %>% group_by(taxonid,Lfd_Nr) %>% summarise(per_range=range/sum(range),iso) # range per pressures 
+r_p <- r1_w_ex %>%
+  ungroup() %>%
+  select(taxonid,Lfd_Nr,iso,range) %>%
+  distinct() %>%
+  group_by(taxonid,Lfd_Nr) %>%
+  summarise(per_range=range/sum(range),iso) # range per pressures 
 
 ex_w <- r1_w_ex %>% left_join(r_p) %>% mutate(score=STARij*per_range*part_press) %>% filter(Lfd_Nr %in% press_locales)
  
 resultats_pressions_locales <- ex_w %>% 
-group_by(taxonid,sector,country,iso) %>% summarise(score=sum(score), .groups = 'drop')
+  group_by(taxonid,sector,country,iso) %>%
+  summarise(score=sum(score), .groups = 'drop')
 
 # saveRDS(resultats_pressions_locales,"data/rds/resultats_pressions_locales.rds")
 
