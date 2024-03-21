@@ -65,7 +65,12 @@ length(unique(rd$taxonid)) # 7,340 espèces restantes
 rd$level <- nchar(gsub("\\D", "", rd$result.code))
 rd$TG <- substr(rd$result.code, 1, 3)
 
-rd <- rd %>% group_by(TG, taxonid) %>% filter(!(level == 2 & any(level == 3))) %>% ungroup() %>% select(-level,-TG) %>% ungroup()
+rd <- rd %>%
+  group_by(TG, taxonid) %>%
+  filter(!(level == 2 & any(level == 3))) %>%
+  ungroup() %>%
+  select(-level,-TG) %>%
+  ungroup()
 
 rm(rd_source,rd_threats,rd_species)
 
@@ -140,17 +145,48 @@ rm(list = grep("^median", ls(), value = TRUE),rd)
 
 ### 1-/ Base de données des range des aires de répartition des espèces d'amphibiens et de mammifères terrestres
 
-mammal_source <- read_excel("data/species_range/terrestrial_mammals_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name) # beaucoup de régions n'ont pas d'iso car zones de conflit entre plusieurs pays 
-amphi_source1 <- read_excel("data/species_range/anura_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name)
-amphi_source2 <- read_excel("data/species_range/Caudata_range_data.xlsx") %>% select(id_no,Surface_sp, iso3,name) %>% rename(Surf_sp=Surface_sp)
-amphi_source3 <- read_excel("data/species_range/Gymnophiona_range_data.xlsx") %>% select(id_no,surf_sp, iso3,name) %>% rename(Surf_sp=surf_sp)
-bird_source <- read_excel("data/species_range/Birds.xlsx") %>% select(sisid,Surf_sp,iso3,name) %>% rename(id_no=sisid)
+#mammal_source <- read_excel("data/species_range/terrestrial_mammals_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name) # beaucoup de régions n'ont pas d'iso car zones de conflit entre plusieurs pays 
+#amphi_source1 <- read_excel("data/species_range/anura_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name)
+#amphi_source2 <- read_excel("data/species_range/Caudata_range_data.xlsx") %>% select(id_no,Surface_sp, iso3,name) %>% rename(Surf_sp=Surface_sp)
+#amphi_source3 <- read_excel("data/species_range/Gymnophiona_range_data.xlsx") %>% select(id_no,surf_sp, iso3,name) %>% rename(Surf_sp=surf_sp)
+#bird_source <- read_excel("data/species_range/Birds.xlsx") %>% select(sisid,Surf_sp,iso3,name) %>% rename(id_no=sisid)
 
 species_range <- rbind(mammal_source,amphi_source1,amphi_source2,amphi_source3,bird_source)
 
+mammal_source <- s3read_using(FUN = read_excel,
+                           object = paste("data/bio/species_range","/terrestrial_mammals_range_data.xlsx",sep=""),
+                           bucket = bucket, opts = list("region" = "")) %>% 
+                           select(id_no,Surf_sp, iso3,name) # beaucoup de régions n'ont pas d'iso 
+                                                            #car zones de conflit entre plusieurs pays
+
+amphi_source1 <- s3read_using(FUN = read_excel,
+                              object = paste("data/bio/species_range","/anura_range_data.xlsx",sep=""),
+                              bucket = bucket, opts = list("region" = "")) %>% 
+                              select(id_no,Surf_sp, iso3,name)
+
+amphi_source2 <- s3read_using(FUN = read_excel,
+                              object = paste("data/bio/species_range","/Caudata_range_data.xlsx",sep=""),
+                              bucket = bucket, opts = list("region" = "")) %>% 
+                              select(id_no,Surface_sp, iso3,name) %>% rename(Surf_sp=Surface_sp)
+
+amphi_source3 <- s3read_using(FUN = read_excel,
+                              object = paste("data/bio/species_range","/Gymnophiona_range_data.xlsx",sep=""),
+                              bucket = bucket, opts = list("region" = "")) %>% 
+                              select(id_no,surf_sp, iso3,name) %>% rename(Surf_sp=surf_sp)
+
+bird_source <- s3read_using(FUN = read_excel,
+                              object = paste("data/bio/species_range","/Birds.xlsx",sep=""),
+                              bucket = bucket, opts = list("region" = "")) %>% 
+                              select(sisid,Surf_sp,iso3,name) %>% rename(id_no=sisid)
+
+species_range <- rbind(mammal_source,amphi_source1,amphi_source2,amphi_source3,bird_source)
+
+
+
 ### 2-/ Table de concordance entre la nomenclature de pays gloria et celle des géographies d'espèces (=olson)
 
-match_pays_olson_gloria <- read_excel("data/match_pays_olson_gloria.xlsx", sheet = "analyse_R_v2")  
+match_pays_olson_gloria <- read_excel("data/match_pays_olson_gloria.xlsx", sheet = "analyse_R_v2")
+
 match_pays_olson_gloria[match_pays_olson_gloria$pays_o == "CÃ´te d'Ivoire", "pays_o"] <- "Côte d'Ivoire" # encoding error for CIV
 
 ### 3-/ On ne garde que les espèces de la redlist filtrée 
@@ -158,7 +194,12 @@ match_pays_olson_gloria[match_pays_olson_gloria$pays_o == "CÃ´te d'Ivoire", "p
 species <- species_range %>% filter(id_no %in% STAR$taxonid) %>% drop_na(iso3) %>% group_by(id_no) #%>% mutate(range=Surf_sp/sum(Surf_sp))
 length(unique(species$id_no)) # On obtient 4 592 espèces 
 
-label_IO <- as.data.frame(readRDS("data/rds/label_IO.rds")) %>% rename(iso=V1, country=V2, sector=V3)
+#label_IO <- as.data.frame(readRDS("data/rds/label_IO.rds")) %>% rename(iso=V1, country=V2, sector=V3)
+
+label_IO <- as.data.frame(s3read_using(FUN = readRDS,
+                            object = paste(set_wd,"/label_IO.rds",sep=""),
+                            bucket = bucket, opts = list("region" = ""))) %>%
+                            rename(iso=V1, country=V2, sector=V3)
 
 species <- species %>% left_join(match_pays_olson_gloria, by=c("name"="pays_o"),relationship = "many-to-many") %>%
   select(-iso3,-name) %>% group_by(pays_g,id_no) %>% summarise(range=sum(Surf_sp)) %>% 
@@ -191,15 +232,22 @@ biotope_source <- biotope_source %>% pivot_longer(!pressure, names_to = "threat"
 
 corr_press <- read_excel("data/gloria_55_57_pressures.xlsx", sheet = "Final_Corr") %>% drop_na(Sattelites_biotope)
 
-biotope <- biotope_source %>% left_join(corr_press %>% select(1,7) %>% distinct(), by=c("pressure"="Sattelites_biotope"),relationship = "many-to-many") %>% 
-  drop_na(Lfd_Nr) %>% distinct() 
+biotope <- biotope_source %>%
+  left_join(corr_press %>% select(1,7) %>% distinct(), by=c("pressure"="Sattelites_biotope"),relationship = "many-to-many") %>% 
+  drop_na(Lfd_Nr) %>%
+  distinct() 
 
 ### 3-/ Eviter un double comptage des menaces niveau 2 (2 chiffres) et 3 (3 chiffres): suppréssion de toutes les menaces de 2 chiffres à moins que la menace de 3 chiffres ne soit pas renseignée
 
 biotope$level <- nchar(gsub("\\D", "", biotope$threat))
 biotope$TG <- substr(biotope$threat, 1, 3)
 
-biotope <- biotope %>% group_by(TG) %>% filter(!(level == 2 & any(level == 3))) %>% ungroup() %>% select(-level,-TG) %>% ungroup()
+biotope <- biotope %>%
+  group_by(TG) %>%
+  filter(!(level == 2 & any(level == 3))) %>%
+  ungroup() %>%
+  select(-level,-TG) %>%
+  ungroup()
 
 rm(biotope_source1,biotope_source2,corr_press,biotope_source)
 
@@ -213,9 +261,22 @@ rm(biotope_source1,biotope_source2,corr_press,biotope_source)
 Q <- readRDS("data/rds/QT_2019.rds") 
 label_Q <- as.data.frame(readRDS("data/rds/label_Q.rds"))
 
+Q <- s3read_using(FUN = readRDS,
+                           object = paste(set_wd,"/QT_2019.rds",sep=""),
+                           bucket = bucket, opts = list("region" = ""))
+
+label_Q <- as.data.frame(s3read_using(FUN = readRDS,
+                                      object = paste(set_wd,"/label_IO.rds",sep=""),
+                                      bucket = bucket, opts = list("region" = "")))
+
 ### 2-/ Identifier les pressions analysables
 
-pressions_gloria <- data.frame(sum=rowSums(Q)) %>% cbind(label_Q) %>% tibble::rownames_to_column("Lfd_Nr") %>% filter(!sum==0) %>% select(Lfd_Nr) %>% distinct() %>% 
+pressions_gloria <- data.frame(sum=colSums(Q)) %>% #ASK JULIE
+  cbind(label_Q) %>% #this has changed
+  tibble::rownames_to_column("Lfd_Nr") %>%
+  filter(!sum==0) %>%
+  select(Lfd_Nr) %>%
+  distinct() %>% 
   mutate(Lfd_Nr = as.numeric(Lfd_Nr)) # Pressions analysables dans gloria
 
 pressions_biotope <- biotope %>% select(Lfd_Nr) %>% distinct() # Pressions analysables dans biotope 
@@ -224,8 +285,8 @@ pressions_analysables <- inner_join(pressions_gloria,pressions_biotope) %>% pull
 
 ### 3-/ Filter les pressions analysables dans Q
 
-Q_abs <- Q[pressions_analysables,]
-rownames(Q_abs) <- pressions_analysables
+Q_abs <- Q[,pressions_analysables]
+colnames(Q_abs) <- pressions_analysables
 
 Q_abs <- as.data.frame(Q_abs) %>% tibble::rownames_to_column("Lfd_Nr") %>% pivot_longer(!Lfd_Nr,names_to="pays_secteur",values_to="pressure")
 
