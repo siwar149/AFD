@@ -6,8 +6,16 @@ library(dplyr)
 ##### IX - Combiner l'analyse des pressions globales et locales ########
 ########################################################################
 
-resultats_pressions_locales <- readRDS("data/rds/resultats_pressions_locales.rds")
-resultats_pressions_globales <- readRDS("data/rds/resultat_press_globales.rds")
+#resultats_pressions_locales <- readRDS("data/rds/resultats_pressions_locales.rds")
+#resultats_pressions_globales <- readRDS("data/rds/resultat_press_globales.rds")
+
+resultats_pressions_locales <- s3read_using(FUN = readRDS,
+             object = paste(set_wd,"/resultats_pressions_locales.rds",sep=""),
+             bucket = bucket, opts = list("region" = ""))
+
+resultats_pressions_globales <- s3read_using(FUN = readRDS,
+             object = paste(set_wd,"/resultat_press_globales.rds",sep=""),
+             bucket = bucket, opts = list("region" = ""))
 
 ### 1-/  Résultats à la maille espèces/ secteur/ pays
 
@@ -20,8 +28,17 @@ rm(resultats_pressions_globales,resultats_pressions_locales,m)
    #################
    # test si la somme des scores d'espèces = score STARij tot d'une espèce en fonction des pressions renseignées 
    
-   r1 <- readRDS("data/rds/r1.rds") 
-   redlist_press <- readRDS("data/rds/redlist_press.rds") 
+   #r1 <- readRDS("data/rds/r1.rds") 
+   #redlist_press <- readRDS("data/rds/redlist_press.rds")
+   
+   redlist_press <- s3read_using(FUN = readRDS,
+                                 object = paste(set_wd,"/redlist_press.rds",sep=""),
+                                 bucket = bucket, opts = list("region" = ""))
+   
+   r1 <- s3read_using(FUN = readRDS,
+                      object = paste(set_wd,"/r1.rds",sep=""),
+                      bucket = bucket, opts = list("region" = ""))
+   
    
    pressures_analysed <- r1 %>% ungroup() %>% select(taxonid,Lfd_Nr) %>% distinct()
    

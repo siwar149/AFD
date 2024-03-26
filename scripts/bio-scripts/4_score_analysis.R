@@ -2,17 +2,26 @@ rm(list=ls())
 
 library(dplyr)
 library(maps)
-library(mapproj)
 library(ggplot2)
 library(readxl)
 library(ggridges)
+library(mapproj)
+
 
 ########################################################################
 ##### X - Analyse des scores de Red List ###############################
 ########################################################################
 
-score_species <- readRDS("data/rds/redlist_score_per_species.rds")
-score <- readRDS("data/rds/score_pays.rds")
+#score_species <- readRDS("data/rds/redlist_score_per_species.rds")
+#score <- readRDS("data/rds/score_pays.rds")
+
+score_species <- s3read_using(FUN = readRDS,
+             object = paste(set_wd,"/redlist_score_per_species.rds",sep=""),
+             bucket = bucket, opts = list("region" = ""))
+
+score <- s3read_using(FUN = readRDS,
+                      object = paste(set_wd,"/score_pays.rds",sep=""),
+                      bucket = bucket, opts = list("region" = ""))
 
 summary(score_species$score_sum) 
 summary(score$score) 
