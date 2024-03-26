@@ -40,16 +40,16 @@ bucket <- "siwar"
 set_wd <- "data"
 
 # Loading matrices (need to upload the .zio files and check dates first)
-OBJECTNAME <- s3read_using(FUN = data.table::fread,encoding = "UTF-8",
-                           object = paste(set_wd,"/20230320_120secMother_AllCountries_002_V-Results_2021_057_Markup001(full).csv",sep=""),
-                           bucket = bucket, opts = list("region" = ""))
+#OBJECTNAME <- s3read_using(FUN = data.table::fread,encoding = "UTF-8",
+#                           object = paste(set_wd,"/20230320_120secMother_AllCountries_002_V-Results_2021_057_Markup001(full).csv",sep=""),
+#                           bucket = bucket, opts = list("region" = ""))
 
 # Loading matrices (need to upload the .zio files and check dates first)
-d <- s3read_using(FUN = data.table::fread,encoding = "UTF-8",
-                           object = paste(set_wd,"/export-bach-2019.csv",sep=""),
-                           bucket = bucket, opts = list("region" = ""))
+#d <- s3read_using(FUN = data.table::fread,encoding = "UTF-8",
+#                           object = paste(set_wd,"/export-bach-2019.csv",sep=""),
+#                           bucket = bucket, opts = list("region" = ""))
 
 # Saving files
-s3write_using(x = as.data.frame(OBJECTNAME), FUN = data.table::fwrite, na = "", 
-              object = paste("Gloria/matrices/x_2021.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
+#s3write_using(x = as.data.frame(OBJECTNAME), FUN = data.table::fwrite, na = "", 
+#              object = paste("Gloria/matrices/x_2021.rds",sep=""),
+#              bucket = bucket, opts = list("region" = ""))

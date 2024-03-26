@@ -7,11 +7,38 @@ library(dplyr)
 library(tidyr)
 library(readxl)
 
-Q_abs <- readRDS("data/rds/Q_abs.rds")
-redlist_press <- readRDS("data/rds/redlist_press.rds")
-press_globales <- readRDS("data/rds/press_globales.rds")
-result <- readRDS("data/rds/result.rds")
-r1 <- readRDS("data/rds/r1.rds")
+set_wd <- "data/bio/rds"
+bucket <- "siwar"
+
+#Q_abs <- readRDS("data/rds/Q_abs.rds")
+
+Q_abs <- s3read_using(FUN = readRDS,
+                      object = paste(set_wd,"/Q_abs.rds",sep=""),
+                      bucket = bucket, opts = list("region" = ""))
+
+#redlist_press <- readRDS("data/rds/redlist_press.rds")
+
+redlist_press <- s3read_using(FUN = readRDS,
+                              object = paste(set_wd,"/redlist_press.rds",sep=""),
+                              bucket = bucket, opts = list("region" = ""))
+
+#press_globales <- readRDS("data/rds/press_globales.rds")
+
+press_globales <- s3read_using(FUN = readRDS,
+                              object = paste(set_wd,"/press_globales.rds",sep=""),
+                              bucket = bucket, opts = list("region" = ""))
+
+#result <- readRDS("data/rds/result.rds")
+
+result <- s3read_using(FUN = readRDS,
+                       object = paste(set_wd,"/result.rds",sep=""),
+                       bucket = bucket, opts = list("region" = ""))
+
+#r1 <- readRDS("data/rds/r1.rds")
+
+r1 <- s3read_using(FUN = readRDS,
+                   object = paste(set_wd,"/r1.rds",sep=""),
+                   bucket = bucket, opts = list("region" = ""))
 
 ###############################################################################
 ##### VIII-/ Pressions globales : Calcul du score de risque d'extinction  #####
