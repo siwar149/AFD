@@ -140,12 +140,26 @@ s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "",
               bucket = bucket2, opts = list("region" = ""))
 
 
+k <- as.data.frame(s3read_using(FUN = data.table::fread,
+              object = paste(set_wd2,"/k_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = "")))
+
+
 # Checking bach data
 
+bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
+
+
+sample <- unique(bach$country)
+
+k <- k[which(k$V1 %in% sample), ]
 
 
 
-### recalculating the leontief
+
+##############################################
+### DO NOT RUN: recalculating the leontief####
+##############################################
 
 label_IO <- label_IO %>%
   mutate(id = paste(V1, V3, sep = " "))
