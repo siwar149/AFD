@@ -33,23 +33,29 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'SVN', 'ESP', 'SWE', 'XEU')
 
 score_ext <- score[which(!score$iso %in% eu),]
+score_eu <- score[which(score$iso %in% eu),]
 
+non_eu <- unique(score_ext$iso)
 
-cSectors <- score_ext %>%
+cSectors_ext <- score_ext %>%
   group_by(iso) %>%
   arrange(desc(score)) %>%
   slice_head(n = 1)
 
-length(unique(cSectors$sector))
+cSectors_eu <- score_eu %>%
+  group_by(iso) %>%
+  arrange(desc(score)) %>%
+  slice_head(n = 1)
 
 
-pSectors <- unique(cSectors$sector)
 
-pSectors
+pSectors_ext <- unique(cSectors_ext$sector)
+pSectors_eu <- unique(cSectors_eu$sector)
 
-f <- as.data.frame(s3read_using(FUN = readRDS,
-                      object = paste(set_wd2,"/FD_2019.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = "")))
+
+f <- as.data.frame(s3read_using(FUN = data.table::fread,
+                      object = paste(set_wd1,"/FD_2019.rds",sep=""),
+                      bucket = bucket1, opts = list("region" = "")))
 
 label_f <- as.data.frame(s3read_using(FUN = readRDS,
                                 object = paste(set_wd2,"/label_FD.rds",sep=""),
@@ -68,22 +74,25 @@ label_IO <- as.data.frame(s3read_using(FUN = readRDS,
                       bucket = bucket2, opts = list("region" = "")))
 
 
-f[which(label_IO$V1 %in% eu),] <- 0
+#f[which(label_IO$V1 %in% eu),] <- 0
 
-f[which(!label_IO$V3 %in% pSectors),] <- 0
+f[which(label_IO$V1 %in% non_eu & !label_IO$V3 %in% pSectors_ext), ] <- 0
+f[which(label_IO$V1 %in% eu & !label_IO$V3 %in% pSectors_eu), ] <- 0
 
 s <- f
 
 rm("f")
 
-
+s3write_using(x = as.data.frame(s), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/s_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
 
 
 ### check final output
 
-x <- as.matrix(s3read_using(FUN = readRDS,
-                    object = paste(set_wd2,"/x_2019.rds",sep=""),
-                    bucket = bucket2, opts = list("region" = "")))
+x <- as.matrix(s3read_using(FUN = data.table::fread,
+                    object = paste(set_wd1,"/x_2019.rds",sep=""),
+                    bucket = bucket1, opts = list("region" = "")))
 
 colnames(x) <- "output"
 
@@ -91,14 +100,14 @@ colnames(x) <- "output"
 
 ##### Now simulate demand #####
 
-L <- as.matrix(s3read_using(FUN = readRDS,
-             object = paste(set_wd2,"/L_2019.rds",sep=""),
-             bucket = bucket2, opts = list("region" = "")))
+L <- as.matrix(s3read_using(FUN = data.table::fread,
+             object = paste(set_wd1,"/L_2019.rds",sep=""),
+             bucket = bucket1, opts = list("region" = "")))
 
 s <- as.matrix(s)
 
-## reduction of 10% final demand on specific sectors of EU
-s <- -(s * 0.1)
+## reduction of 1% final demand on specific sectors of EU and EXT
+s <- -(s * 0.01)
 
 k <- L %*% s
 
@@ -114,9 +123,6 @@ k <- cbind(k, x)
 
 colnames(k)[4] <- "loss"
 
-k <- k %>%
-  mutate(share= abs(loss) / x * 100)
-
 
 nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
 
@@ -129,36 +135,47 @@ k <- k %>%
   group_by(V1, V2, NACE) %>%
   summarise(
     loss = sum(loss),
-    x = sum(x),
-    share = sum(share)
+    x = sum(x)
   )
+
+k <- k %>%
+  mutate(share= abs(loss) / x * 100)
 
 rm("L")
 
 s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/k_2019.rds",sep=""),
+              object = paste("data/Gloria/k1_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
 k <- as.data.frame(s3read_using(FUN = data.table::fread,
-              object = paste(set_wd2,"/k_2019.rds",sep=""),
+              object = paste(set_wd2,"/k1_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = "")))
 
 
 # Checking bach data
 
 bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
+iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
 
+k <- k %>%
+  left_join(iso, by = c("V1"="iso"))
 
 sample <- unique(bach$country)
 
-k <- k[which(k$V1 %in% sample), ]
+k <- k[which(k$eu %in% sample), ]
+
+
+s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "", 
+              object = paste("data/Gloria/k2_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
 
 
 
 
 ##############################################
-### DO NOT RUN: recalculating the leontief####
+### DO NOT RUN: recalculating the leontief ### RUN BOY RUN
 ##############################################
 
 label_IO <- label_IO %>%
