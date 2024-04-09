@@ -2,12 +2,10 @@
 
 library("readr")
 library("Rcpp")
-library("RcppEigen")
-library("RcppArmadillo")
-library("microbenchmark")
 
 gc()
 
+##### STAR metric
 
 ## setting bucket and all
 
@@ -40,18 +38,24 @@ non_eu <- unique(score_ext$iso)
 cSectors_ext <- score_ext %>%
   group_by(iso) %>%
   arrange(desc(score)) %>%
-  slice_head(n = 1)
+  slice_head(n = 6)
 
 cSectors_eu <- score_eu %>%
   group_by(iso) %>%
   arrange(desc(score)) %>%
-  slice_head(n = 1)
+  slice_head(n = 6)
 
 
+ext_t <- table(cSectors_ext$sector)
+eu_t <- table(cSectors_eu$sector)
 
-pSectors_ext <- unique(cSectors_ext$sector)
-pSectors_eu <- unique(cSectors_eu$sector)
+pSector_ext <- names(ext_t)[which.max(ext_t)]
+pSector_eu <- names(eu_t)[which.max(eu_t)]
 
+#pSectors_ext <- unique(cSectors_ext$sector)
+#pSectors_eu <- unique(cSectors_eu$sector)
+
+rm("score")
 
 f <- as.data.frame(s3read_using(FUN = data.table::fread,
                       object = paste(set_wd1,"/FD_2019.rds",sep=""),
@@ -61,11 +65,13 @@ label_f <- as.data.frame(s3read_using(FUN = readRDS,
                                 object = paste(set_wd2,"/label_FD.rds",sep=""),
                                 bucket = bucket2, opts = list("region" = "")))
 
-### Just keeping the final demand from EU
+### Just keeping the final demand from EU and certain types of demand
 
-f <- f[, which(label_f$V1 %in% eu)]
+td <- c("Household final consumption P.3h", "Government final consumption P.3g")
 
-f <- as.matrix(rowSums(f))
+f1 <- f[, which(label_f$V1 %in% eu & label_f$V3 %in% td)]
+
+f1 <- as.matrix(rowSums(f1))
 
 ## We get only the household consumption from final demand and EU
 
@@ -76,15 +82,17 @@ label_IO <- as.data.frame(s3read_using(FUN = readRDS,
 
 #f[which(label_IO$V1 %in% eu),] <- 0
 
-f[which(label_IO$V1 %in% non_eu & !label_IO$V3 %in% pSectors_ext), ] <- 0
-f[which(label_IO$V1 %in% eu & !label_IO$V3 %in% pSectors_eu), ] <- 0
+f1[which(label_IO$V1 %in% non_eu & !label_IO$V3 %in% pSector_ext), ] <- 0
+f1[which(label_IO$V1 %in% eu & !label_IO$V3 %in% pSector_eu), ] <- 0
 
-s <- f
+s <- f1
 
-rm("f")
+rm("f1")
+
+f <- as.matrix(rowSums(f))
 
 s3write_using(x = as.data.frame(s), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/s_2019.rds",sep=""),
+              object = paste(set_wd2,"/s1_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
@@ -97,7 +105,6 @@ x <- as.matrix(s3read_using(FUN = data.table::fread,
 colnames(x) <- "output"
 
 
-
 ##### Now simulate demand #####
 
 L <- as.matrix(s3read_using(FUN = data.table::fread,
@@ -105,6 +112,10 @@ L <- as.matrix(s3read_using(FUN = data.table::fread,
              bucket = bucket1, opts = list("region" = "")))
 
 s <- as.matrix(s)
+
+### first compute output
+
+x1 <- L %*% f
 
 ## reduction of 1% final demand on specific sectors of EU and EXT
 s <- -(s * 0.01)
@@ -117,11 +128,15 @@ k <- cbind(label_IO, k)
 
 k <- k[which(k$V1 %in% eu),]
 
-x <- x[which(k$V1 %in% eu),]
+x1 <- x1[which(k$V1 %in% eu),]
 
-k <- cbind(k, x)
+k <- cbind(k, x1)
 
 colnames(k)[4] <- "loss"
+
+s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/k_01_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
 
 
 nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
@@ -129,13 +144,18 @@ nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
 k <- k %>%
   left_join(nace, by = c("V3"="Gloria"))
 
+# drop anomalous values
+
+k <- k %>%
+  filter(abs(loss) <= x1)
+
 k <- k[, -3]
 
 k <- k %>%
   group_by(V1, V2, NACE) %>%
   summarise(
     loss = sum(loss),
-    x = sum(x)
+    x = sum(x1)
   )
 
 k <- k %>%
@@ -144,7 +164,7 @@ k <- k %>%
 rm("L")
 
 s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/k1_2019.rds",sep=""),
+              object = paste("data/Gloria/k5_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
@@ -167,81 +187,10 @@ k <- k[which(k$eu %in% sample), ]
 
 
 s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/k2_2019.rds",sep=""),
+              object = paste("data/Gloria/k6_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
 
-
-
-##############################################
-### DO NOT RUN: recalculating the leontief ### RUN BOY RUN
-##############################################
-
-label_IO <- label_IO %>%
-  mutate(id = paste(V1, V3, sep = " "))
-
-score <- score %>%
-  mutate(id = paste(iso, sector, sep = " "))
-
-index3 <- which(label_IO$id %in% score$id)
-
-
-Z <- as.matrix(s3read_using(FUN = readRDS,
-                  object = paste(set_wd2,"/IO_2019.rds",sep=""),
-                  bucket = bucket2, opts = list("region" = "")))
-
-Z <- Z[index3, index3]
-
-x <- x[index3,]
-
-x <- x + 0.0001
-
-A <- Z %*% solve(diag(x))    # Technical coefficients matrix
-
-# recalculated reduced version of matrix
-
-library("leontief")
-
-L <- leontief_inverse(A)
-
-L <- solve(diag(dim(A)[1])-A)
-
-
-s3write_using(x = as.data.frame(L), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/L1_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
-
-s3write_using(x = as.data.frame(A), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/A1_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
-
-
-
-
-L <- as.matrix(s3read_using(FUN = data.table::fread,
-                object = paste(set_wd2,"/L1_2019.rds",sep=""),
-                bucket = bucket2, opts = list("region" = "")))
-
-rm("A", "Z")
-
-## calculate all value chain impacts on biodiversity
-
-b <- score$score
-
-b <- b / x
-
-tL <- as.matrix(t(L))
-
-db <- diag(b)
-
-sourceCpp("C/test.cpp")
-
-E <- eigenMapMatMult(tL, db)
-
-E <- tL %*% db
-
-
-s3write_using(x = as.data.frame(E), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/E1_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+##################################################################
+################## 
