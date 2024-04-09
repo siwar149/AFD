@@ -10,11 +10,8 @@ gc()
 ## setting bucket and all
 
 bucket1 = "projet-esteem"
-set_wd1 <- "Gloria/matrices"
-
 bucket2 = "siwar"
-set_wd2 <- "data/Gloria"
-set_wd3 <- "data/bio/rds"
+
 
 ## First find the most impactful sectors per country
 
@@ -193,4 +190,18 @@ s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "",
 
 
 ##################################################################
-################## 
+################## Other paramters ###############################
+##################################################################
+
+QT <- s3read_using(FUN = data.table::fread,
+             object = "Gloria/matrices/QT_2019.rds",
+             bucket = bucket1, opts = list("region" = ""))
+
+
+label_Q <- s3read_using(FUN = data.table::fread,
+                          object = "Gloria/labels/label_Q.rds",
+                          bucket = bucket1, opts = list("region" = ""))
+
+
+
+
