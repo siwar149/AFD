@@ -18,8 +18,8 @@ set_wd <- "data/bio/rds"
 #score <- readRDS("data/rds/score_pays.rds")
 
 score_species <- s3read_using(FUN = readRDS,
-             object = paste(set_wd,"/redlist_score_per_species.rds",sep=""),
-             bucket = bucket, opts = list("region" = ""))
+             object = paste(set_wd3,"/redlist_score_per_species.rds",sep=""),
+             bucket = bucket2, opts = list("region" = ""))
 
 score <- s3read_using(FUN = readRDS,
                       object = paste(set_wd,"/score_pays.rds",sep=""),

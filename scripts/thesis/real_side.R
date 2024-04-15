@@ -12,6 +12,9 @@ gc()
 bucket1 = "projet-esteem"
 bucket2 = "siwar"
 
+set_wd1 <- "Gloria/matrices"
+set_wd2 <- "data/Gloria"
+set_wd3 <- "data/bio/rds"
 
 ## First find the most impactful sectors per country
 
@@ -108,6 +111,13 @@ L <- as.matrix(s3read_using(FUN = data.table::fread,
              object = paste(set_wd1,"/L_2019.rds",sep=""),
              bucket = bucket1, opts = list("region" = "")))
 
+# let's inspect the multipliers of electricity generation
+
+eu_electricity <- which(label_IO$V1 %in% eu & label_IO$V3 %in% pSector_eu)
+
+diag(L[eu_electricity, eu_electricity])
+
+
 s <- as.matrix(s)
 
 ### first compute output
@@ -119,20 +129,22 @@ s <- -(s * 0.01)
 
 k <- L %*% s
 
+# the case of germany
+
+L[5253,5253] * s[5253]
+
 ## putting some labels to the shock and calculating impact on output
+
+k <- cbind(k, x)
 
 k <- cbind(label_IO, k)
 
 k <- k[which(k$V1 %in% eu),]
 
-x1 <- x1[which(k$V1 %in% eu),]
-
-k <- cbind(k, x1)
-
 colnames(k)[4] <- "loss"
 
 s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/k_01_2019.rds",sep=""),
+              object = paste(set_wd2,"/k_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
