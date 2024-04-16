@@ -38,22 +38,22 @@ non_eu <- unique(score_ext$iso)
 cSectors_ext <- score_ext %>%
   group_by(iso) %>%
   arrange(desc(score)) %>%
-  slice_head(n = 6)
+  slice_head(n = 1)
 
 cSectors_eu <- score_eu %>%
   group_by(iso) %>%
   arrange(desc(score)) %>%
-  slice_head(n = 6)
+  slice_head(n = 1)
 
 
-ext_t <- table(cSectors_ext$sector)
-eu_t <- table(cSectors_eu$sector)
+#ext_t <- table(cSectors_ext$sector)
+#eu_t <- table(cSectors_eu$sector)
 
-pSector_ext <- names(ext_t)[which.max(ext_t)]
-pSector_eu <- names(eu_t)[which.max(eu_t)]
+#pSector_ext <- names(ext_t)[which.max(ext_t)]
+#pSector_eu <- names(eu_t)[which.max(eu_t)]
 
-#pSectors_ext <- unique(cSectors_ext$sector)
-#pSectors_eu <- unique(cSectors_eu$sector)
+pSectors_ext <- unique(cSectors_ext$sector)
+pSectors_eu <- unique(cSectors_eu$sector)
 
 rm("score")
 
@@ -82,14 +82,13 @@ label_IO <- as.data.frame(s3read_using(FUN = readRDS,
 
 #f[which(label_IO$V1 %in% eu),] <- 0
 
-f1[which(label_IO$V1 %in% non_eu & !label_IO$V3 %in% pSector_ext), ] <- 0
-f1[which(label_IO$V1 %in% eu & !label_IO$V3 %in% pSector_eu), ] <- 0
+f1[which(label_IO$V1 %in% non_eu & !label_IO$V3 %in% pSectors_ext), ] <- 0
+f1[which(label_IO$V1 %in% eu & !label_IO$V3 %in% pSectors_eu), ] <- 0
 
 s <- f1
 
 rm("f1")
 
-f <- as.matrix(rowSums(f))
 
 s3write_using(x = as.data.frame(s), FUN = data.table::fwrite, na = "", 
               object = paste(set_wd2,"/s1_2019.rds",sep=""),
@@ -113,16 +112,16 @@ L <- as.matrix(s3read_using(FUN = data.table::fread,
 
 # let's inspect the multipliers of electricity generation
 
-eu_electricity <- which(label_IO$V1 %in% eu & label_IO$V3 %in% pSector_eu)
+#eu_electricity <- which(label_IO$V1 %in% eu & label_IO$V3 %in% pSector_eu)
 
-diag(L[eu_electricity, eu_electricity])
+#diag(L[eu_electricity, eu_electricity])
 
 
 s <- as.matrix(s)
 
 ### first compute output
 
-x1 <- L %*% f
+#x1 <- L %*% f
 
 ## reduction of 1% final demand on specific sectors of EU and EXT
 s <- -(s * 0.01)
@@ -131,7 +130,7 @@ k <- L %*% s
 
 # the case of germany
 
-L[5253,5253] * s[5253]
+#L[5253,5253] * s[5253]
 
 ## putting some labels to the shock and calculating impact on output
 
@@ -156,7 +155,7 @@ k <- k %>%
 # drop anomalous values
 
 k <- k %>%
-  filter(abs(loss) <= x1)
+  filter(abs(loss) <= output)
 
 k <- k[, -3]
 
@@ -164,11 +163,11 @@ k <- k %>%
   group_by(V1, V2, NACE) %>%
   summarise(
     loss = sum(loss),
-    x = sum(x1)
+    output = sum(output)
   )
 
 k <- k %>%
-  mutate(share= abs(loss) / x * 100)
+  mutate(rshare= abs(loss) / output * 100)
 
 rm("L")
 
@@ -196,7 +195,7 @@ k <- k[which(k$eu %in% sample), ]
 
 
 s3write_using(x = as.data.frame(k), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/k6_2019.rds",sep=""),
+              object = paste("data/Gloria/k_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
