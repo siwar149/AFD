@@ -1,5 +1,11 @@
 ##### Make some graphs ####
 
+install.packages("viridis")  # Install
+library("viridis")           # Load
+install.packages("ggsci")
+library("ggsci")
+
+
 bucket1 = "projet-esteem"
 set_wd1 <- "Gloria/matrices"
 
@@ -9,40 +15,27 @@ set_wd3 <- "data/bio/rds"
 
 
 k <- as.data.frame(s3read_using(FUN = data.table::fread,
-                                object = paste(set_wd2,"/k6_2019.rds",sep=""),
+                                object = paste(set_wd2,"/k_2019.rds",sep=""),
                                 bucket = bucket2, opts = list("region" = "")))
 
 
-k0 <- k %>%
+k <- k %>%
   group_by(V1, V2, eu) %>%
-  mutate(tshare= abs(loss) / sum(x) * 100)
+  mutate(tshare= abs(loss) / sum(output) * 100)
 
-k1 <- k0 %>%
+
+k1 <- k %>%
   group_by(V1, V2, eu) %>%
   arrange(desc(tshare)) %>%
-  slice_head(n = 6)
-  
-ks <- k0 %>%
-  group_by(eu) %>%
-  summarise(
-    tshare = sum(tshare)
-  )
-
-countries_to_eliminate <- c("DE", "HR", "PT")
-
-# Filtering out the specified countries
-k_filtered <- k1 %>%
-  filter(!eu %in% countries_to_eliminate)
-
-
-
-ggplot(k_filtered, aes(x = eu, y = share, fill = factor(NACE))) +
-  geom_bar(stat = "identity") +
-  labs(x = "EU", y = "Share") +
-  scale_fill_discrete(name = "Sector") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  mutate(across(where(is.numeric), ~ ifelse(row_number() >= 6, sum(.), .))) %>%
+  mutate(NACE = ifelse(row_number() == 6, "X", NACE)) %>%
+  filter(row_number() <= 6)
 
 
 
 
+ggplot(k1, aes(x = eu, y = tshare, fill = factor(NACE))) +
+  geom_bar(stat = "identity", color = "black") +  # Adding lines to each filled sector
+  labs(x = "EU", y = "Share (%)") +
+  scale_fill_uchicago(name = "Sector") +  # Setting the title of the legend
+  theme_bw()
