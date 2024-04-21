@@ -39,3 +39,4 @@ ggplot(k1, aes(x = eu, y = tshare, fill = factor(NACE))) +
   labs(x = "EU", y = "Share (%)") +
   scale_fill_uchicago(name = "Sector") +  # Setting the title of the legend
   theme_bw()
+
