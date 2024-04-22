@@ -28,7 +28,7 @@ k1 <- k %>%
   left_join(bach, by = c("country", "sector"))
 
 ### select only relevant variables
-sltd <- grep("^I1|^I10|^It1|^It3|^Ic1|^A1|^A51|^A6|^A7|^A|^E1|^E2|^E|^L1|^L2|
+sltd <- grep("^I1|^I83|^I10|^It1|^It3|^Ic1|^A1|^A51|^A6|^A7|^A|^E1|^E2|^E|^L1|^L2|
      ^L61|^L|^R2|^R31|^R32|^R33", names(k1), value = TRUE)
 
 ### Keep only the relevant variables
@@ -40,5 +40,23 @@ colnames(k2)[1] <- "country"
 k2 <- k2 %>%
   mutate(fit= if_else(size == "0", turnover / output, NA))
 
-View(cbind(k2[,c(1,2,329)]))
+View(cbind(k2[,c(1,2,334)]))
+
+
+k2 <- k2 %>%
+  mutate(int = if_else(size == "0", I83_WM * I83_NBQ + I10_WM * I10_NBQ, NA))
+
+k2 <- k2 %>%
+  mutate(dit = if_else(size == "0", - 1 / turnover^2 * int * (loss * fit), NA))
+
+
+k2 <- k2 %>%
+  mutate(it1 = if_else(size == "0", int / turnover, NA))
+
+
+k2 <- k2 %>%
+  mutate(it2 = if_else(size == "0", int / turnover + dit, NA))
+
+
+View(cbind(k2[,c(1,2,334:338)]))
 
