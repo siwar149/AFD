@@ -13,7 +13,7 @@ k <- as.data.frame(s3read_using(FUN = data.table::fread,
                                 object = paste(set_wd2,"/k_2019.rds",sep=""),
                                 bucket = bucket2, opts = list("region" = "")))
 
-bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
+bach <- read.csv("AFD/data/export-bach-2019.csv", sep = ";", header = T)
 
 ### Eliminate the observations that comprise small and medium enterprises
 bach <- bach[-which(bach$size == "1"),]
@@ -32,7 +32,7 @@ sltd <- grep("^I1|^I83|^I10|^It1|^It3|^Ic1|^A1|^A51|^A6|^A7|^A|^E1|^E2|^E|^L1|^L
      ^L61|^L|^R2|^R31|^R32|^R33", names(k1), value = TRUE)
 
 ### Keep only the relevant variables
-k2 <- cbind(k1[,7], k1[, c(3:6,9,11:17)], k1[sltd])
+k2 <- cbind(k1[,7], k1[, c(3:6,8,10:16)], k1[sltd])
 
 colnames(k2)[1] <- "country"
 

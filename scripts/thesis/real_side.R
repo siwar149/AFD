@@ -3,8 +3,6 @@
 library("readr")
 library("Rcpp")
 
-gc()
-
 ##### STAR metric
 
 ## setting bucket and all
