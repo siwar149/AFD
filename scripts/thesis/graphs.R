@@ -36,7 +36,7 @@ g <- g %>%
 
 ggplot(g, aes(x = eu, y = tshare, fill = factor(NACE))) +
   geom_bar(stat = "identity", color = "black") +  # Adding lines to each filled sector
-  labs(x = "EU", y = "Share (%)") +
+  labs(x = "EU", y = "(%) GDP") +
   scale_fill_uchicago(name = "Sector") +  # Setting the title of the legend
   theme_bw()
 
