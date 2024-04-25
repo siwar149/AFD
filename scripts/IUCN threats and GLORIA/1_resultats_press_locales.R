@@ -379,6 +379,12 @@ resultats_pressions_locales <- ex_w %>%
   group_by(taxonid,sector,country,iso) %>%
   summarise(score=sum(score), .groups = 'drop')
 
+resultats_pressions_locales_press <- ex_w %>% 
+  group_by(Lfd_Nr,sector,country,iso) %>% summarise(score=sum(score), .groups = 'drop')
+
+saveRDS(resultats_pressions_locales_press,"data/rds/resultats_pressions_locales_press.rds")
+
+
 # saveRDS(resultats_pressions_locales,"data/rds/resultats_pressions_locales.rds")
 
 # saveRDS(Q_abs,"data/rds/Q_abs.rds")

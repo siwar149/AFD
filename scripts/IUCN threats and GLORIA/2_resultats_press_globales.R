@@ -67,6 +67,10 @@ rm(result_g)
 
 resultats_pressions_globales <- resultats_dt[, .(score = sum(score)), by = .(taxonid, sector, country, iso)]
 
+resultats_pressions_globales_press <- resultats_dt[, .(score = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
+
 rm(resultats_dt)
 
 # saveRDS(resultats_pressions_globales,"data/rds/resultat_press_globales.rds")
+
+# saveRDS(resultats_pressions_globales_press,"data/rds/resultat_press_globales_press.rds")

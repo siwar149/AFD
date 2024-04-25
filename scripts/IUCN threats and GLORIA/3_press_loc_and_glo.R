@@ -22,8 +22,11 @@ resultats_pressions_globales <- s3read_using(FUN = readRDS,
 m <- rbind(resultats_pressions_globales, resultats_pressions_locales)
 merged_data <- data.table::as.data.table(m)
 merged_data <- merged_data[, .(score_sum = sum(score)), by = .(taxonid, sector, country, iso)]
+merged_data1 <- merged_data[, .(score_sum = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
 
 rm(resultats_pressions_globales,resultats_pressions_locales,m)
+
+saveRDS(merged_data1, "data/rds/redlist_score_per_pressure.rds")
 
    #################
    # test si la somme des scores d'espèces = score STARij tot d'une espèce en fonction des pressions renseignées 
