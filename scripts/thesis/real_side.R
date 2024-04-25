@@ -17,8 +17,8 @@ set_wd3 <- "data/bio/rds"
 ### First find the most impactful sectors per country
 
 
-result <- s3read_using(FUN = readRDS,
-             object = paste(set_wd3,"/result.rds",sep=""),
+rs_pressure <- s3read_using(FUN = readRDS,
+             object = paste(set_wd3,"/redlist_score_per_pressure.rds",sep=""),
              bucket = bucket2, opts = list("region" = ""))
 
 
@@ -27,7 +27,7 @@ score <- s3read_using(FUN = readRDS,
                       bucket = bucket2, opts = list("region" = ""))
 
 
-### we get the consumption of EU 27
+### we get the nSTAR score for EU countries and all others
 
 eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'FIN', 'FRA', 'DEU', 'GRC', 'HUN', 'IRL', 'ITA', 'LVA', 
@@ -39,6 +39,52 @@ score_eu <- score[which(score$iso %in% eu),]
 
 non_eu <- unique(score_ext$iso)
 
+
+nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
+
+rs_pressure <- rs_pressure %>%
+  left_join(nace, by = c("sector"="Gloria"))
+
+score1_ext <- rs_pressure[which(!rs_pressure$iso %in% eu),]
+score1_eu <- rs_pressure[which(rs_pressure$iso %in% eu),]
+
+### At pressure level
+
+cSectors1_ext <- score1_ext %>%
+  group_by(iso, country, sector, Lfd_Nr) %>%
+  summarise(star = sum(score_sum)) %>%
+  group_by(iso, country) %>%
+  top_n(2, wt = star) %>%
+  arrange(desc(star))
+
+country_sum <- score1_ext %>%
+  group_by(iso, country) %>%
+  summarise(total_star = sum(score_sum))
+
+cSectors1_ext <- cSectors1_ext %>%
+  left_join(country_sum, by = c("iso", "country")) %>%
+  mutate(share = star / total_star)
+
+s3write_using(x = as.data.frame(cSectors1_ext), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/cSectors_ext.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+### at sector level of NACE
+country_sum <- score1_ext %>%
+  group_by(iso, country, NACE) %>%
+  summarise(total_star = sum(score_sum)) %>%
+  arrange(desc(total_star)) %>%
+  slice_head(n = 1)
+
+
+
+cSectors1_eu <- score1_eu %>%
+  group_by(iso) %>%
+  arrange(desc(score_sum)) %>%
+  slice_head(n = 12)
+
+
+### At sector level
 cSectors_ext <- score_ext %>%
   group_by(iso) %>%
   arrange(desc(score)) %>%
