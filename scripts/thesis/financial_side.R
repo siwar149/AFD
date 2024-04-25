@@ -13,7 +13,7 @@ k <- as.data.frame(s3read_using(FUN = data.table::fread,
                                 object = paste(set_wd2,"/k_2019.rds",sep=""),
                                 bucket = bucket2, opts = list("region" = "")))
 
-bach <- read.csv("AFD/data/export-bach-2019.csv", sep = ";", header = T)
+bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
 
 ### Eliminate the observations that comprise small and medium enterprises
 bach <- bach[-which(bach$size == "1"),]
@@ -38,24 +38,11 @@ colnames(k2)[1] <- "country"
 
 ### Check correspondence between Gloria's Output and Bach's Turnover
 k2 <- k2 %>%
-  mutate(fit= if_else(size == "0", turnover / output, NA))
-
-View(cbind(k2[,c(1,2,334)]))
-
-
-k2 <- k2 %>%
-  mutate(int = if_else(size == "0", I83_WM * I83_NBQ + I10_WM * I10_NBQ, NA))
-
-k2 <- k2 %>%
-  mutate(dit = if_else(size == "0", - 1 / turnover^2 * int * (loss * fit), NA))
-
-
-k2 <- k2 %>%
-  mutate(it1 = if_else(size == "0", int / turnover, NA))
-
-
-k2 <- k2 %>%
-  mutate(it2 = if_else(size == "0", int / turnover + dit, NA))
+  mutate(fit= if_else(size == "0", turnover / output, NA),
+         int = if_else(size == "0", I83_WM * I83_NBQ + I10_WM * I10_NBQ, NA),
+         dit = if_else(size == "0", - 1 / turnover^2 * int * (loss * fit), NA),
+         it1 = if_else(size == "0", int / turnover, NA),
+         it2 = if_else(size == "0", int / turnover + dit, NA))
 
 
 View(cbind(k2[,c(1,2,334:338)]))
