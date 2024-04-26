@@ -45,13 +45,34 @@ e <- e$score / x$x
 
 E <- diag(e)
 
-
-### we get the nSTAR score for EU countries and all others
-
+# now we get the final demand for european countries
 eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'FIN', 'FRA', 'DEU', 'GRC', 'HUN', 'IRL', 'ITA', 'LVA', 
          'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
          'SVN', 'ESP', 'SWE', 'XEU')
+
+f <- as.data.frame(s3read_using(FUN = data.table::fread,
+                                object = paste(set_wd1,"/FD_2019.rds",sep=""),
+                                bucket = bucket1, opts = list("region" = "")))
+
+label_f <- as.data.frame(s3read_using(FUN = readRDS,
+                                      object = paste(set_wd2,"/label_FD.rds",sep=""),
+                                      bucket = bucket2, opts = list("region" = "")))
+
+f1 <- f[, which(label_f$V1 %in% eu)]
+
+f1 <- as.matrix(rowSums(f1))
+
+
+L <- as.matrix(s3read_using(FUN = data.table::fread,
+                            object = paste(set_wd1,"/L_2019.rds",sep=""),
+                            bucket = bucket1, opts = list("region" = "")))
+
+
+
+### we get the nSTAR score for EU countries and all others
+
+
 
 score_ext <- score[which(!score$iso %in% eu),]
 score_eu <- score[which(score$iso %in% eu),]
@@ -119,21 +140,13 @@ pSectors_eu <- unique(cSectors_eu$sector)
 
 rm("score")
 
-f <- as.data.frame(s3read_using(FUN = data.table::fread,
-                      object = paste(set_wd1,"/FD_2019.rds",sep=""),
-                      bucket = bucket1, opts = list("region" = "")))
 
-label_f <- as.data.frame(s3read_using(FUN = readRDS,
-                                object = paste(set_wd2,"/label_FD.rds",sep=""),
-                                bucket = bucket2, opts = list("region" = "")))
 
 ### Just keeping the final demand from EU and certain types of demand
 
 td <- c("Household final consumption P.3h", "Government final consumption P.3g")
 
-f1 <- f[, which(label_f$V1 %in% eu & label_f$V3 %in% td)]
 
-f1 <- as.matrix(rowSums(f1))
 
 ### We get only the household consumption from final demand and EU
 
