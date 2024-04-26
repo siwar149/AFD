@@ -68,6 +68,11 @@ L <- as.matrix(s3read_using(FUN = data.table::fread,
                             object = paste(set_wd1,"/L_2019.rds",sep=""),
                             bucket = bucket1, opts = list("region" = "")))
 
+E <- E %*% L
+
+Fc <- E %*% L %*% f1
+
+
 
 
 ### we get the nSTAR score for EU countries and all others
