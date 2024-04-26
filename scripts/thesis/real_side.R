@@ -21,10 +21,29 @@ rs_pressure <- s3read_using(FUN = readRDS,
              object = paste(set_wd3,"/redlist_score_per_pressure.rds",sep=""),
              bucket = bucket2, opts = list("region" = ""))
 
-
+### Calculate the nSTAR footprint of EUs final demand
 score <- s3read_using(FUN = readRDS,
                       object = paste(set_wd3,"/score_pays.rds",sep=""),
                       bucket = bucket2, opts = list("region" = ""))
+
+x <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd1,"/x_2019.rds",sep=""),
+                  bucket = bucket1, opts = list("region" = ""))
+
+label_IO <- as.data.frame(s3read_using(FUN = readRDS,
+                  object = paste(set_wd2,"/label_IO.rds",sep=""),
+                  bucket = bucket2, opts = list("region" = "")))
+
+colnames(label_IO) <- c("iso", "country", "sector")
+
+e <- label_IO %>%
+  left_join(score, by = c("iso", "sector")) %>%
+  mutate(score= if_else(is.na(score), 0, score)) %>%
+  select(score)
+
+e <- e$score / x$x
+
+E <- diag(e)
 
 
 ### we get the nSTAR score for EU countries and all others
@@ -118,9 +137,7 @@ f1 <- as.matrix(rowSums(f1))
 
 ### We get only the household consumption from final demand and EU
 
-label_IO <- as.data.frame(s3read_using(FUN = readRDS,
-                      object = paste(set_wd2,"/label_IO.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = "")))
+
 
 
 #f[which(label_IO$V1 %in% eu),] <- 0
@@ -140,9 +157,9 @@ s3write_using(x = as.data.frame(s), FUN = data.table::fwrite, na = "",
 
 ### check final output
 
-x <- as.matrix(s3read_using(FUN = data.table::fread,
+x <- s3read_using(FUN = data.table::fread,
                     object = paste(set_wd1,"/x_2019.rds",sep=""),
-                    bucket = bucket1, opts = list("region" = "")))
+                    bucket = bucket1, opts = list("region" = ""))
 
 colnames(x) <- "output"
 
