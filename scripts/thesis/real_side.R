@@ -68,9 +68,9 @@ L <- as.matrix(s3read_using(FUN = data.table::fread,
                             object = paste(set_wd1,"/L_2019.rds",sep=""),
                             bucket = bucket1, opts = list("region" = "")))
 
-E <- E %*% L
+fd <- L %*% f1
 
-Fc <- E %*% L %*% f1
+Fc <- E %*% fd
 
 
 
