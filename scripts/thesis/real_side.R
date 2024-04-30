@@ -42,7 +42,7 @@ e <- label_IO %>%
   select(score)
 
 e <- e$score / x$x
-
+e[is.na(e)] <- 0 ## handle na's bc yemen doesn't have data on output
 E <- diag(e)
 
 # now we get the final demand for european countries
@@ -50,6 +50,9 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'FIN', 'FRA', 'DEU', 'GRC', 'HUN', 'IRL', 'ITA', 'LVA', 
          'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
          'SVN', 'ESP', 'SWE', 'XEU')
+
+eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
+         "LUX", "POL", "PRT", "SVK")
 
 f <- as.data.frame(s3read_using(FUN = data.table::fread,
                                 object = paste(set_wd1,"/FD_2019.rds",sep=""),
@@ -60,20 +63,34 @@ label_f <- as.data.frame(s3read_using(FUN = readRDS,
                                       bucket = bucket2, opts = list("region" = "")))
 
 f1 <- f[, which(label_f$V1 %in% eu)]
+f2 <- f[, which(label_f$V1 %in% eu1)]
 
 f1 <- as.matrix(rowSums(f1))
+f2 <- as.matrix(rowSums(f2))
 
+## Get the set of final demands where there are negative values
+index1 <- as.numeric(sub("V", "", names(which(apply(f1, 2, function(col) sum(col < 0) > 0)))))
+index2 <- as.numeric(sub("V", "", names(which(apply(f2, 2, function(col) sum(col < 0) > 0)))))
+
+label_f[index1,] # one can see that changes in inventories have negative values
+label_f[index2,]
+
+View(f[which(apply(f1, 1, function(row) any(row < 0))), index1])
+
+
+label_f2 <- label_f[which(colSums(f2 < 0) > 0),]
 
 L <- as.matrix(s3read_using(FUN = data.table::fread,
                             object = paste(set_wd1,"/L_2019.rds",sep=""),
                             bucket = bucket1, opts = list("region" = "")))
 
-fd <- L %*% f1
 
-Fc <- E %*% fd
+ft <- t(L) %*% e
+
+plcy <- ft * f1
 
 
-
+plcy <- E %*% L %*% f1
 
 ### we get the nSTAR score for EU countries and all others
 
