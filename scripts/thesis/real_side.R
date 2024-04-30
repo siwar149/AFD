@@ -51,8 +51,8 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
          'SVN', 'ESP', 'SWE', 'XEU')
 
-eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
-         "LUX", "POL", "PRT", "SVK")
+#eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
+#         "LUX", "POL", "PRT", "SVK")
 
 f <- as.data.frame(s3read_using(FUN = data.table::fread,
                                 object = paste(set_wd1,"/FD_2019.rds",sep=""),
@@ -63,39 +63,68 @@ label_f <- as.data.frame(s3read_using(FUN = readRDS,
                                       bucket = bucket2, opts = list("region" = "")))
 
 f1 <- f[, which(label_f$V1 %in% eu)]
-f2 <- f[, which(label_f$V1 %in% eu1)]
+#f2 <- f[, which(label_f$V1 %in% eu1)]
 
-f1 <- as.matrix(rowSums(f1))
-f2 <- as.matrix(rowSums(f2))
 
 ## Get the set of final demands where there are negative values
 index1 <- as.numeric(sub("V", "", names(which(apply(f1, 2, function(col) sum(col < 0) > 0)))))
-index2 <- as.numeric(sub("V", "", names(which(apply(f2, 2, function(col) sum(col < 0) > 0)))))
+#index2 <- as.numeric(sub("V", "", names(which(apply(f2, 2, function(col) sum(col < 0) > 0)))))
 
 label_f[index1,] # one can see that changes in inventories have negative values
-label_f[index2,]
+#label_f[index2,]
 
 View(f[which(apply(f1, 1, function(row) any(row < 0))), index1])
 
+# Then we exclude changes in inventories from the footprint calculation
+f1 <- as.matrix(f1[,-which(apply(f1, 2, function(col) sum(col < 0) > 0))])
 
-label_f2 <- label_f[which(colSums(f2 < 0) > 0),]
 
 L <- as.matrix(s3read_using(FUN = data.table::fread,
                             object = paste(set_wd1,"/L_2019.rds",sep=""),
                             bucket = bucket1, opts = list("region" = "")))
 
 
-ft <- t(L) %*% e
-
-plcy <- ft * f1
-
-
+# calculate the footprint matrix
 plcy <- E %*% L %*% f1
 
-### we get the nSTAR score for EU countries and all others
+# Convert to data.table
+plcy <- as.data.table(plcy)
+
+# Define groups of 5 contiguous columns
+
+
+plcy_sum <- cbind(rowSums(plcy[,1:5]),
+                  rowSums(plcy[,6:10]),
+                  rowSums(plcy[,11:15]),
+                  rowSums(plcy[,16:20]),
+                  rowSums(plcy[,21:25]),
+                  rowSums(plcy[,26:30]),
+                  rowSums(plcy[,31:35])
+                  )
+
+
+# Define group size
+group_size <- 5
+
+# Calculate number of groups
+num_groups <- ncol(plcy) %/% group_size
+
+# Initialize empty list to store results
+plcy_sum <- list()
+
+# Loop through each group and calculate row sums
+for (i in 0:(num_groups - 1)) {
+  plcy_sum[[i + 1]] <- plcy[, rowSums(.SD, na.rm = TRUE), 
+                            .SDcols = ((i * group_size + 1):((i + 1) * group_size))]
+}
+
+# Combine results into a single data.table
+plcy_sum <- as.data.table(do.call(cbind, plcy_sum))
 
 
 
+
+###############################################
 score_ext <- score[which(!score$iso %in% eu),]
 score_eu <- score[which(score$iso %in% eu),]
 
