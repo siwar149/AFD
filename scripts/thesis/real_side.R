@@ -1,7 +1,6 @@
 #### Real side analysis
 
-library("readr")
-library("Rcpp")
+library("tidyr")
 
 ##### STAR metric
 
@@ -92,17 +91,6 @@ plcy <- as.data.table(plcy)
 
 # Define groups of 5 contiguous columns
 
-
-plcy_sum <- cbind(rowSums(plcy[,1:5]),
-                  rowSums(plcy[,6:10]),
-                  rowSums(plcy[,11:15]),
-                  rowSums(plcy[,16:20]),
-                  rowSums(plcy[,21:25]),
-                  rowSums(plcy[,26:30]),
-                  rowSums(plcy[,31:35])
-                  )
-
-
 # Define group size
 group_size <- 5
 
@@ -120,6 +108,51 @@ for (i in 0:(num_groups - 1)) {
 
 # Combine results into a single data.table
 plcy_sum <- as.data.table(do.call(cbind, plcy_sum))
+
+# Assign the country labels to each final demand footprint
+colnames(plcy_sum) <- label_f[index1,]$V1
+
+# Start the analysis for EU and non-EU countries
+plcy_sum_eu <- cbind(label_IO[which(label_IO$iso %in% eu),], plcy_sum[which(label_IO$iso %in% eu),])
+plcy_sum_ext <- cbind(label_IO[which(!label_IO$iso %in% eu),], plcy_sum[which(!label_IO$iso %in% eu),])
+
+colnames(plcy_sum_eu)
+
+plcy_sum_eu <- plcy_sum_eu %>%
+  group_by(sector) %>%
+  summarise(across(where(is.numeric), sum, na.rm = TRUE))
+
+# Reshape the data to long format
+plcy_sum_eu_long <- plcy_sum_eu %>%
+  pivot_longer(cols = -sector, names_to = "variable", values_to = "value")
+
+# Get the top 12 values for each numeric variable
+top_12_eu <- plcy_sum_eu_long %>%
+  group_by(variable) %>%
+  top_n(12, value)
+
+#ext
+plcy_sum_ext <- plcy_sum_ext %>%
+  group_by(sector) %>%
+  summarise(across(where(is.numeric), sum, na.rm = TRUE))
+
+# Reshape the data to long format
+plcy_sum_ext_long <- plcy_sum_ext %>%
+  pivot_longer(cols = -sector, names_to = "variable", values_to = "value")
+
+# Get the top 12 values for each numeric variable
+top_12_ext <- plcy_sum_ext_long %>%
+  group_by(variable) %>%
+  top_n(12, value)
+
+
+top_12_ext <- top_12_ext %>%
+  group_by(variable) %>%
+  mutate(sum_value = sum(value))
+
+top_12_ext <- top_12_ext %>%
+  group_by(variable) %>%
+  mutate(share = value / sum_value)
 
 
 
