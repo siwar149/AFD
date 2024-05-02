@@ -41,6 +41,7 @@ e <- label_IO %>%
   mutate(score= if_else(is.na(score), 0, score)) %>%
   select(score)
 
+
 e <- e$score / x$x
 e[is.na(e)] <- 0 ## handle na's bc yemen doesn't have data on output
 E <- diag(e)
@@ -204,7 +205,7 @@ s3write_using(x = as.data.table(E), FUN = data.table::fwrite, na = "",
               object = paste(set_wd2,"/E.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
-
+### Calculate the final demand that corresponds to the reduction in biodiversity footprint
 dplcy <- as.matrix(dplcy)
 plcy_sum <- as.matrix(plcy_sum)
 
@@ -212,8 +213,26 @@ dp <- dplcy * plcy_sum
 
 rm(dplcy, plcy_sum)
 
-df <- dp %*% soleve(E %*% L)
-top_12[top_12$variable == "ITA",]
+# solve singularity
+e <- as.matrix(e)
+e1 <- t(L) %*% e
+
+df <- dp 
+
+for (i in colnames(df)) {
+  df[, i] <- dp[, i] / e1
+}
+
+
+df <- replace(df, is.na(df), 0)
+ 
+# Calculate variation in output
+dx <- L %*% df
+
+s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/dx.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
 
 ###############################################
 score_ext <- score[which(!score$iso %in% eu),]
