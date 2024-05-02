@@ -1,6 +1,7 @@
 #### Real side analysis
 
 library("tidyr")
+install.packages("Matrix")
 
 ##### STAR metric
 
@@ -116,8 +117,8 @@ colnames(plcy_sum) <- label_f[index1,]$V1
 plcy_sum_eu <- cbind(label_IO[which(label_IO$iso %in% eu),], plcy_sum[which(label_IO$iso %in% eu),])
 plcy_sum_ext <- cbind(label_IO[which(!label_IO$iso %in% eu),], plcy_sum[which(!label_IO$iso %in% eu),])
 
-colnames(plcy_sum_eu)
 
+# EU
 plcy_sum_eu <- plcy_sum_eu %>%
   group_by(sector) %>%
   summarise(across(where(is.numeric), sum, na.rm = TRUE))
@@ -129,9 +130,12 @@ plcy_sum_eu_long <- plcy_sum_eu %>%
 # Get the top 12 values for each numeric variable
 top_12_eu <- plcy_sum_eu_long %>%
   group_by(variable) %>%
-  top_n(12, value)
+  top_n(12, value) %>%
+  mutate(sum_value = sum(value)) %>%
+  mutate(share = value / sum_value)
 
-#ext
+
+# EXT
 plcy_sum_ext <- plcy_sum_ext %>%
   group_by(sector) %>%
   summarise(across(where(is.numeric), sum, na.rm = TRUE))
@@ -143,19 +147,73 @@ plcy_sum_ext_long <- plcy_sum_ext %>%
 # Get the top 12 values for each numeric variable
 top_12_ext <- plcy_sum_ext_long %>%
   group_by(variable) %>%
-  top_n(12, value)
-
-
-top_12_ext <- top_12_ext %>%
-  group_by(variable) %>%
-  mutate(sum_value = sum(value))
-
-top_12_ext <- top_12_ext %>%
-  group_by(variable) %>%
+  top_n(12, value) %>%
+  mutate(sum_value = sum(value)) %>%
   mutate(share = value / sum_value)
 
+rm(plcy_sum_ext_long, plcy_sum_eu_long, plcy_sum_ext, plcy_sum_eu, k, g)
 
 
+top_12_eu <- top_12_eu %>%
+  mutate(region = "eu")
+
+top_12_ext <- top_12_ext %>%
+  mutate(region = "ext")
+
+
+top_12 <- rbind(top_12_eu, top_12_ext)
+rm(top_12_eu, top_12_ext)
+
+
+
+is_eu <- label_IO$iso %in% eu
+
+
+dplcy <- label_IO %>%
+  mutate(region = if_else(is_eu, "eu", "ext"),
+         id = paste(sector, region))
+
+top_12_merge <- top_12 %>%
+  mutate(id = paste(sector, region)) %>%
+  select(variable, id, share)
+
+for (i in names(plcy_sum)) {
+  dplcy <- dplcy %>%
+    left_join(top_12[top_12$variable == i,], by = "id") %>%
+    select(-variable) %>%
+    rename(!!i := share)
+}
+
+
+dplcy[, 6:33] <- dplcy[, 6:33] * -1
+
+dplcy <- replace(dplcy, is.na(dplcy), 0)
+
+dplcy <- dplcy[, 6:33]
+  
+
+s3write_using(x = as.data.table(dplcy), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/dplcy.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+s3write_using(x = as.data.table(plcy_sum), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/plcy_sum.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+s3write_using(x = as.data.table(E), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/E.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+
+dplcy <- as.matrix(dplcy)
+plcy_sum <- as.matrix(plcy_sum)
+
+dp <- dplcy * plcy_sum
+
+rm(dplcy, plcy_sum)
+
+df <- dp %*% soleve(E %*% L)
+top_12[top_12$variable == "ITA",]
 
 ###############################################
 score_ext <- score[which(!score$iso %in% eu),]
