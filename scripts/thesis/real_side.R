@@ -79,9 +79,9 @@ View(f[which(apply(f1, 1, function(row) any(row < 0))), index1])
 f1 <- as.matrix(f1[,-which(apply(f1, 2, function(col) sum(col < 0) > 0))])
 
 
-L <- as.matrix(s3read_using(FUN = data.table::fread,
-                            object = paste(set_wd1,"/L_2019.rds",sep=""),
-                            bucket = bucket1, opts = list("region" = "")))
+L <- s3read_using(FUN = data.table::fread,
+                      object = paste(set_wd1,"/L_2019.rds",sep=""),
+                      bucket = bucket1, opts = list("region" = ""))
 
 
 # calculate the footprint matrix
@@ -217,24 +217,36 @@ dp <- dplcy * plcy_sum
 
 rm(dplcy, plcy_sum)
 
+
+s3write_using(x = as.data.table(dp), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/dp.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
 # solve singularity
 e <- as.matrix(e)
 e1 <- t(L) %*% e
 
-df <- dp 
+df <- matrix(data = NA, nrow = nrow(dp), ncol = ncol(dp))
+
+colnames(df) <- colnames(dp)
 
 for (i in colnames(df)) {
   df[, i] <- dp[, i] / e1
 }
 
+df[is.na(df)] <- 0
 
-df <- replace(df, is.na(df), 0)
+
+s3write_using(x = as.data.table(df), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/df1.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
  
 # Calculate variation in output
 dx <- L %*% df
 
 s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/dx.rds",sep=""),
+              object = paste(set_wd2,"/dx1.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
@@ -245,17 +257,17 @@ dx <- s3read_using(FUN = data.table::fread,
 dx <- as.data.table(rowSums(dx))
 
 
-class(x)
 
 g <- cbind(dx,x)
 
 g <- cbind(label_IO, g)
 
+colnames(g)[4] <- "dx"
 
-g <- g[which(g$V1 %in% eu),]
+g <- g[which(g$iso %in% eu),]
 
 s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/g_2019.rds",sep=""),
+              object = paste(set_wd2,"/g1_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 g <- s3read_using(FUN = data.table::fread,
@@ -267,13 +279,13 @@ g <- s3read_using(FUN = data.table::fread,
 nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
 
 g <- g %>%
-  left_join(nace, by = c("V3"="Gloria"))
+  left_join(nace, by = c("sector"="Gloria"))
 
 
 g <- g[, -3]
 
 g <- g %>%
-  group_by(V1, V2, NACE) %>%
+  group_by(iso, country, NACE) %>%
   summarise(
     dx = sum(dx),
     x = sum(x)
@@ -285,7 +297,7 @@ g <- g %>%
 #rm("L")
 
 s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g1_2019.rds",sep=""),
+              object = paste("data/Gloria/g2_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
@@ -300,7 +312,7 @@ bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
 iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
 
 g <- g %>%
-  left_join(iso, by = c("V1"="iso"))
+  left_join(iso, by = c("iso"="iso"))
 
 sample <- unique(bach$country)
 
@@ -308,26 +320,6 @@ g <- g[which(g$eu %in% sample), ]
 
 
 s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g2_2019.rds",sep=""),
+              object = paste("data/Gloria/g3_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
-
-
-
-
-
-##################################################################
-################## Other paramters ###############################
-##################################################################
-
-QT <- s3read_using(FUN = data.table::fread,
-             object = "Gloria/matrices/QT_2019.rds",
-             bucket = bucket1, opts = list("region" = ""))
-
-
-label_Q <- s3read_using(FUN = data.table::fread,
-                          object = "Gloria/labels/label_Q.rds",
-                          bucket = bucket1, opts = list("region" = ""))
-
-
-
 
