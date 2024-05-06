@@ -168,13 +168,14 @@ top_12 <- rbind(top_12_eu, top_12_ext)
 rm(top_12_eu, top_12_ext)
 
 
-
+# create a "shock" matrix
 is_eu <- label_IO$iso %in% eu
 
 
 dplcy <- label_IO %>%
   mutate(region = if_else(is_eu, "eu", "ext"),
-         id = paste(sector, region))
+         id = paste(sector, region)) %>%
+  select(-sector, -region)
 
 # changing shock
 top_12_merge <- top_12 %>%
@@ -188,11 +189,12 @@ for (i in names(plcy_sum)) {
     rename(!!i := shock)
 }
 
+dplcy <- dplcy %>%
+  select(-c(iso, country, id))
 
-dplcy[, 6:33] <- dplcy[, 6:33] * -1
-
-dplcy <- dplcy[, 6:33]
+dplcy[is.na(dplcy)] <- 0
   
+dplcy <- dplcy * -1
 
 
 s3write_using(x = as.data.table(dplcy), FUN = data.table::fwrite, na = "", 
