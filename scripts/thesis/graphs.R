@@ -52,6 +52,12 @@ footprint <- s3read_using(FUN = data.table::fread,
 
 footprint <- as.data.table(rowSums(footprint))
 
+label_IO <- as.data.table(s3read_using(FUN = readRDS,
+                      object = paste(set_wd2,"/label_IO.rds",sep=""),
+                      bucket = bucket2, opts = list("region" = "")))
+
+colnames(label_IO) <- c("iso", "country", "sector")
+
 footprint <- cbind(label_IO, footprint) %>%
   rename(score = V1)
 
@@ -92,9 +98,10 @@ map_ext %>%
   geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
                color = "black", fill = NA, size=0.1) +
   labs(fill = "nSTAR", fontface = "bold") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "blue", high = "red") +
   coord_map("moll") +
   theme(plot.title = element_text(hjust = 0.5)) 
+
 
 map_eu %>%
   ggplot(aes(map_id = region, fill = score)) +
@@ -102,11 +109,13 @@ map_eu %>%
   geom_polygon(data = world_map1, aes(x = long, y = lat, group = group),
                color = "black", fill = NA, size=0.1) +
   labs(fill = "nSTAR", fontface = "bold") +
-  scale_fill_gradient(low = "green", high = "red") +
+  scale_fill_gradient(low = "blue", high = "red") +
   coord_map("moll") +
   theme(plot.title = element_text(hjust = 0.5)) +
   xlim(xmin = -15, xmax = 40) +  # Set longitude limits
   ylim(ymin = 30, ymax = 70)  
+
+
 
 ##### Graphs of country specific footprints #####
 eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
@@ -146,4 +155,13 @@ s3write_using(x = as.data.table(press), FUN = data.table::fwrite, na = "",
               bucket = bucket2, opts = list("region" = ""))
 
 
-View(press[press$country == "France" & press$sector == "Air transport", ])
+View(press[press$country == "Austria" & press$sector == "Air transport", ])
+
+
+
+top_12 <- as.data.frame(s3read_using(FUN = data.table::fread,
+                       object = paste(set_wd2,"/top_12.rds",sep=""),
+                       bucket = bucket2, opts = list("region" = "")))
+
+
+View(top_12[top_12$variable == "FRA" & top_12$region == "ext",])
