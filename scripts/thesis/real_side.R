@@ -45,7 +45,7 @@ e <- label_IO %>%
 e <- e$score / x$x
 
 
-# now we get the final demand for european countries
+# european countries
 eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'FIN', 'FRA', 'DEU', 'GRC', 'HUN', 'IRL', 'ITA', 'LVA', 
          'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
@@ -55,14 +55,15 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
 #         "LUX", "POL", "PRT", "SVK")
 
 f <- s3read_using(FUN = data.table::fread,
-                                object = paste(set_wd1,"/FD_2019.rds",sep=""),
-                                bucket = bucket1, opts = list("region" = ""))
+                        object = paste(set_wd1,"/FD_2019.rds",sep=""),
+                        bucket = bucket1, opts = list("region" = ""))
 
-label_f <- s3read_using(FUN = readRDS,
-                                      object = paste(set_wd2,"/label_FD.rds",sep=""),
-                                      bucket = bucket2, opts = list("region" = ""))
+label_f <- as.data.table(s3read_using(FUN = readRDS,
+                              object = paste(set_wd2,"/label_FD.rds",sep=""),
+                              bucket = bucket2, opts = list("region" = "")))
+f1 <- rowSums(f)
 
-f1 <- f[, which(label_f$V1 %in% eu)]
+#f1 <- f[, which(label_f$V1 %in% eu)]
 #f2 <- f[, which(label_f$V1 %in% eu1)]
 
 
@@ -83,13 +84,113 @@ L <- s3read_using(FUN = data.table::fread,
                       object = paste(set_wd1,"/L_2019.rds",sep=""),
                       bucket = bucket1, opts = list("region" = ""))
 
-E <- diag(e) %*% L
+# compute vector with multipliers of consumption footprint
+mcf <- t(as.matrix(L)) %*% e
 
-rm(L)
-gc()
+s3write_using(x = as.data.table(mcf), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/mcf.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
 
-# calculate the footprint matrix
-plcy <- diag(e) %*% L %*% f1
+# Actual nSTAR consumption based footprint
+t <- mcf * f1
+
+s3write_using(x = as.data.table(t), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/t.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+tis <- t
+
+in_eu <- which(label_IO$iso %in% eu)
+not_eu <- which(!label_IO$iso %in% eu)
+
+tis[not_eu] <- 0
+
+dt <- -0.01 * sum(t[in_eu]) * (tis / sum(t))
+
+# Calculate variation in demand
+dF <- dt / mcf
+abs(dF) / F1
+
+# Calculate variation in output
+dx <- as.matrix(L) %*% dF
+abs(dx) / x
+
+#s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
+#              object = paste(set_wd2,"/dx.rds",sep=""),
+#              bucket = bucket2, opts = list("region" = ""))
+
+f1 <- as.data.table(f1)
+
+g <- cbind(dx, x, dF, f1)
+
+colnames(g)[c(1,3:4)] <- c("dx", "df", "f")
+
+g <- cbind(label_IO, g)
+
+g <- g[in_eu,]
+
+s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/g_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+
+### Add a column with the NACE sectors
+nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
+
+g <- g %>%
+  left_join(nace, by = c("sector"="Gloria"))
+
+
+g <- g[, -3]
+
+g <- g %>%
+  group_by(iso, country, NACE) %>%
+  summarise(
+    dx = sum(dx),
+    x = sum(x),
+    df = sum(df),
+    f = sum(f)
+  )
+
+g <- g %>%
+  mutate(abvarx= abs(dx) / x * 100,
+         abvarf= abs(df) / f * 100)
+
+
+s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
+              object = paste("data/Gloria/g_1_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+
+# Keeping only the countries in the BACH data
+
+bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
+iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
+
+g <- g %>%
+  left_join(iso, by = c("iso"="iso"))
+
+sample <- unique(bach$country)
+
+g <- g[which(g$eu %in% sample), ]
+
+
+s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
+              object = paste("data/Gloria/g_2_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+
+### Flow matrix for world map
+T <- diag(e) %*% as.matrix(L) %*% diag(f1)
+
+
+s3write_using(x = as.data.table(T[,in_eu]), FUN = data.table::fwrite, na = "", 
+              object = paste("data/Gloria/Teu.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+
+
+
 
 # Convert to data.table
 plcy <- as.data.table(plcy)
@@ -261,68 +362,5 @@ dx <- as.data.table(rowSums(dx))
 
 
 
-g <- cbind(dx,x)
 
-g <- cbind(label_IO, g)
-
-colnames(g)[4] <- "dx"
-
-g <- g[which(g$iso %in% eu),]
-
-s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/g1_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
-
-g <- s3read_using(FUN = data.table::fread,
-                   object = paste(set_wd2,"/g_2019.rds",sep=""),
-                   bucket = bucket2, opts = list("region" = ""))
-
-
-### Add a column with the NACE sectors
-nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
-
-g <- g %>%
-  left_join(nace, by = c("sector"="Gloria"))
-
-
-g <- g[, -3]
-
-g <- g %>%
-  group_by(iso, country, NACE) %>%
-  summarise(
-    dx = sum(dx),
-    x = sum(x)
-  )
-
-g <- g %>%
-  mutate(rshare= abs(dx) / x * 100)
-
-#rm("L")
-
-s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g2_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
-
-
-#k <- as.data.frame(s3read_using(FUN = data.table::fread,
-#              object = paste(set_wd2,"/k1_2019.rds",sep=""),
-#              bucket = bucket2, opts = list("region" = "")))
-
-
-# Checking bach data
-
-bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
-iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
-
-g <- g %>%
-  left_join(iso, by = c("iso"="iso"))
-
-sample <- unique(bach$country)
-
-g <- g[which(g$eu %in% sample), ]
-
-
-s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g3_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
 
