@@ -21,19 +21,6 @@ s <- c(3500, 2100, 17500, 12250)
 # intensity vector
 e <- s / x
 
-T <- diag(e) %*% L %*% diag(F1)
-
-#t1 <- diag(e) %*% L %*% diag(F[,1]) # this is meaningless
-#colSums(t1)
-#s
-
-Tpf <- rowSums(T) # production
-Tpf - s # this is consistent
-
-Tcf <- colSums(T) # consumption
-as.matrix(Tcf)
-
-
 # This, does get the consumption based footprint (disagregated by country)
 t <- t(L) %*% e * F1
 
@@ -53,6 +40,19 @@ abs(dx) / x
 
 
 
+# For the world graph #
+
+T <- diag(e) %*% L %*% diag(F1) # for the whole flow matrix
+
+#t1 <- diag(e) %*% L %*% diag(F[,1]) # this is meaningless
+#colSums(t1)
+#s
+
+Tpf <- rowSums(T) # production
+Tpf - s # this is consistent
+
+Tcf <- colSums(T) # consumption
+as.matrix(Tcf)
 
 
 

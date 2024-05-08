@@ -17,19 +17,19 @@ set_wd2 <- "data/Gloria"
 set_wd3 <- "data/bio/rds"
 
 
-g <- as.data.frame(s3read_using(FUN = data.table::fread,
-                                object = paste(set_wd2,"/g3_2019.rds",sep=""),
-                                bucket = bucket2, opts = list("region" = "")))
+g <- s3read_using(FUN = data.table::fread,
+                        object = paste(set_wd2,"/g_2_2019.rds",sep=""),
+                        bucket = bucket2, opts = list("region" = ""))
 
 
 g1 <- g %>%
   group_by(iso, country, eu) %>%
-  mutate(tshare= abs(dx) / sum(x) * 100)
+  mutate(revarx= abs(dx) / sum(x) * 100)
 
 
 g1 <- g1 %>%
   group_by(iso, country, eu) %>%
-  arrange(desc(tshare)) %>%
+  arrange(desc(revarx)) %>%
   mutate(across(where(is.numeric), ~ ifelse(row_number() >= 6, sum(.), .))) %>%
   mutate(NACE = ifelse(row_number() == 6, "X", NACE)) %>%
   filter(row_number() <= 6)
@@ -37,7 +37,7 @@ g1 <- g1 %>%
 
 
 
-ggplot(g1, aes(x = eu, y = tshare, fill = factor(NACE))) +
+ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
   geom_bar(stat = "identity", color = "black") +  # Adding lines to each filled sector
   labs(x = "EU", y = "(%) GDP") +
   scale_fill_uchicago(name = "Sector") +  # Setting the title of the legend
@@ -47,7 +47,7 @@ ggplot(g1, aes(x = eu, y = tshare, fill = factor(NACE))) +
 
 ### World graph ###
 footprint <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/plcy_sum.rds",sep=""),
+                  object = paste(set_wd2,"/Teu.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
 
 footprint <- as.data.table(rowSums(footprint))
