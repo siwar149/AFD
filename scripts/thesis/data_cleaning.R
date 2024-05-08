@@ -71,13 +71,101 @@ s3write_using(x = as.data.table(T[,in_eu]), FUN = data.table::fwrite, na = "",
 
 
 
-# A curiosity
+# VARIATION IN INVENTORIES IS NEGATIVE FOR ALL COUNTRIES
 ## Get the set of final demands where there are negative values
 #index1 <- as.numeric(sub("V", "", names(which(apply(f1, 2, function(col) sum(col < 0) > 0)))))
 #label_f[index1,] # one can see that changes in inventories have negative values
 #View(f[which(apply(f1, 1, function(row) any(row < 0))), index1])
 # Then we exclude changes in inventories from the footprint calculation
 #f1 <- as.matrix(f1[,-which(apply(f1, 2, function(col) sum(col < 0) > 0))])
+
+
+
+# DO THIS ANALYSIS BUT WITH THE Teu MATRIX
+plcy <- as.data.table(plcy)
+
+# Define groups of 5 contiguous columns
+
+# Define group size
+group_size <- 5
+
+# Calculate number of groups
+num_groups <- ncol(plcy) %/% group_size
+
+# Initialize empty list to store results
+plcy_sum <- list()
+
+# Loop through each group and calculate row sums
+for (i in 0:(num_groups - 1)) {
+  plcy_sum[[i + 1]] <- plcy[, rowSums(.SD, na.rm = TRUE), 
+                            .SDcols = ((i * group_size + 1):((i + 1) * group_size))]
+}
+
+# Combine results into a single data.table
+plcy_sum <- as.data.table(do.call(cbind, plcy_sum))
+
+# Assign the country labels to each final demand footprint
+colnames(plcy_sum) <- label_f[index1,]$V1
+
+# Start the analysis for EU and non-EU countries
+plcy_sum_eu <- cbind(label_IO[which(label_IO$iso %in% eu),], plcy_sum[which(label_IO$iso %in% eu),])
+plcy_sum_ext <- cbind(label_IO[which(!label_IO$iso %in% eu),], plcy_sum[which(!label_IO$iso %in% eu),])
+
+
+# EU
+plcy_sum_eu <- plcy_sum_eu %>%
+  group_by(sector) %>%
+  summarise(across(where(is.numeric), sum, na.rm = TRUE))
+
+# Reshape the data to long format
+plcy_sum_eu_long <- plcy_sum_eu %>%
+  pivot_longer(cols = -sector, names_to = "variable", values_to = "value")
+
+# Get the top 12 values for each numeric variable
+top_12_eu <- plcy_sum_eu_long %>%
+  group_by(variable) %>%
+  top_n(12, value) %>%
+  mutate(sum_value = sum(value),
+         share = value / sum_value,
+         shock = 0.01)
+
+
+# EXT
+plcy_sum_ext <- plcy_sum_ext %>%
+  group_by(sector) %>%
+  summarise(across(where(is.numeric), sum, na.rm = TRUE))
+
+# Reshape the data to long format
+plcy_sum_ext_long <- plcy_sum_ext %>%
+  pivot_longer(cols = -sector, names_to = "variable", values_to = "value")
+
+# Get the top 12 values for each numeric variable
+top_12_ext <- plcy_sum_ext_long %>%
+  group_by(variable) %>%
+  top_n(12, value) %>%
+  mutate(sum_value = sum(value),
+         share = value / sum_value,
+         shock = 0.01)
+
+rm(plcy_sum_ext_long, plcy_sum_eu_long, plcy_sum_ext, plcy_sum_eu)
+
+
+top_12_eu <- top_12_eu %>%
+  mutate(region = "eu")
+
+top_12_ext <- top_12_ext %>%
+  mutate(region = "ext")
+
+
+top_12 <- rbind(top_12_eu, top_12_ext)
+rm(top_12_eu, top_12_ext)
+
+
+
+
+
+
+
 
 
 
