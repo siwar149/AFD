@@ -1,6 +1,7 @@
 #### Real side analysis
 
 library("tidyr")
+#library("MASS")
 
 ##### STAR metric
 
@@ -29,6 +30,8 @@ x <- s3read_using(FUN = data.table::fread,
                   object = paste(set_wd1,"/x_2019.rds",sep=""),
                   bucket = bucket1, opts = list("region" = ""))
 
+x <- x + 0.0001 # No data on Yemen's output
+
 label_IO <- as.data.table(s3read_using(FUN = readRDS,
                   object = paste(set_wd2,"/label_IO.rds",sep=""),
                   bucket = bucket2, opts = list("region" = "")))
@@ -37,13 +40,10 @@ colnames(label_IO) <- c("iso", "country", "sector")
 
 e <- label_IO %>%
   left_join(score, by = c("iso", "sector")) %>%
-  mutate(score= if_else(is.na(score), 0, score)) %>%
-  select(score)
-
+  mutate(score= if_else(is.na(score), 0.0001, score))
 
 e <- e$score / x$x
-e[is.na(e)] <- 0 ## handle na's bc yemen doesn't have data on output
-E <- diag(e)
+
 
 # now we get the final demand for european countries
 eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
@@ -83,9 +83,13 @@ L <- s3read_using(FUN = data.table::fread,
                       object = paste(set_wd1,"/L_2019.rds",sep=""),
                       bucket = bucket1, opts = list("region" = ""))
 
+E <- diag(e) %*% L
+
+rm(L)
+gc()
 
 # calculate the footprint matrix
-plcy <- E %*% L %*% f1
+plcy <- diag(e) %*% L %*% f1
 
 # Convert to data.table
 plcy <- as.data.table(plcy)
@@ -223,8 +227,7 @@ s3write_using(x = as.data.table(dp), FUN = data.table::fwrite, na = "",
               bucket = bucket2, opts = list("region" = ""))
 
 # solve singularity
-e <- as.matrix(e)
-e1 <- t(L) %*% e
+Einv <- ginv(diag(e)%*%L)
 
 df <- matrix(data = NA, nrow = nrow(dp), ncol = ncol(dp))
 
