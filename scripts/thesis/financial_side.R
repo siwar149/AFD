@@ -1,49 +1,40 @@
 ##### The financial analysis #####
 
-bucket1 = "projet-esteem"
+bucket1 <- "projet-esteem"
 set_wd1 <- "Gloria/matrices"
 
-bucket2 = "siwar"
+bucket2 <- "siwar"
 set_wd2 <- "data/Gloria"
 set_wd3 <- "data/bio/rds"
 
 
 ### Merge the Gloria simulation results with the Bach data
-k <- as.data.frame(s3read_using(FUN = data.table::fread,
-                                object = paste(set_wd2,"/k_2019.rds",sep=""),
-                                bucket = bucket2, opts = list("region" = "")))
+g <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd2,"/g_2_2019.rds",sep=""),
+                  bucket = bucket2, opts = list("region" = ""))
 
 bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
 
 ### Eliminate the observations that comprise small and medium enterprises
-bach <- bach[-which(bach$size == "1"),]
+bach <- bach[which(bach$size == "0"),]
 
-#bachT <- bach[which(bach$size == "0"),]
-#bachD <- bach[-which(bach$size == "0"),]
-
-colnames(k)[c(3,7)] <- c("sector", "country")
+g1 <- g %>%
+  select(eu, NACE, abvarx) %>%
+  rename(country = eu,
+         sector = NACE) %>%
+  mutate(abvarx = abvarx * (-1/100))
 
 ### Perform a raw merge
-k1 <- k %>%
+g1 <- g1 %>%
   left_join(bach, by = c("country", "sector"))
 
 ### select only relevant variables
 sltd <- grep("^I1|^I83|^I10|^It1|^It3|^Ic1|^A1|^A51|^A6|^A7|^A|^E1|^E2|^E|^L1|^L2|
-     ^L61|^L|^R2|^R31|^R32|^R33", names(k1), value = TRUE)
+     ^L61|^L|^R2|^R31|^R32|^R33", names(g1), value = TRUE)
 
-### Keep only the relevant variables
-k2 <- cbind(k1[,7], k1[, c(3:6,8,10:16)], k1[sltd])
+### create variable of interest payments over net turnover
+g1 <- g1 %>%
+  mutate(ipt1 = (I83_WM+I10_WM)/(I1_WM+abvarx*I1_WM),
+         vaript = (R24_WM*10^-2 - ipt1)*100)
 
-colnames(k2)[1] <- "country"
-
-### Check correspondence between Gloria's Output and Bach's Turnover
-k2 <- k2 %>%
-  mutate(fit= if_else(size == "0", turnover / output, NA),
-         int = if_else(size == "0", I83_WM * I83_NBQ + I10_WM * I10_NBQ, NA),
-         dit = if_else(size == "0", - 1 / turnover^2 * int * (loss * fit), NA),
-         it1 = if_else(size == "0", int / turnover, NA),
-         it2 = if_else(size == "0", int / turnover + dit, NA))
-
-
-View(cbind(k2[,c(1,2,334:338)]))
 
