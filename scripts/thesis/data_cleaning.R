@@ -62,8 +62,13 @@ s3write_using(x = as.data.table(mcf), FUN = data.table::fwrite, na = "",
 ### Flow matrix for world map
 T <- diag(e) %*% as.matrix(L) %*% diag(f)
 
+eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
+         "LUX", "POL", "PRT", "SVK")
 
-s3write_using(x = as.data.table(T[,in_eu]), FUN = data.table::fwrite, na = "", 
+in_eu1 <- which(label_IO$iso %in% eu1)
+
+
+s3write_using(x = as.data.table(T[,in_eu1]), FUN = data.table::fwrite, na = "", 
               object = paste("data/Gloria/Teu.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
@@ -170,5 +175,3 @@ rm(top_12_eu, top_12_ext)
 
 
 # comes in handy
-#eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
-#         "LUX", "POL", "PRT", "SVK")
