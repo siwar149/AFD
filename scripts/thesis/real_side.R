@@ -24,6 +24,12 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'SVN', 'ESP', 'SWE', 'XEU')
 
 # load the relevant matrices and vectors
+label_IO <- as.data.table(s3read_using(FUN = readRDS,
+                                       object = paste(set_wd2,"/label_IO.rds",sep=""),
+                                       bucket = bucket2, opts = list("region" = "")))
+
+colnames(label_IO) <- c("iso", "country", "sector")
+
 mcf <- s3read_using(FUN = data.table::fread,
                   object = paste(set_wd2,"/mcf.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
@@ -36,23 +42,43 @@ f <- s3read_using(FUN = data.table::fread,
 # Actual nSTAR consumption based footprint
 t <- mcf * f
 
-
-tis <- t
+summary(mcf)
 
 in_eu <- which(label_IO$iso %in% eu)
 not_eu <- which(!label_IO$iso %in% eu)
 
-tis[not_eu] <- 0
+tis <- t
 
-dt <- -0.01 * sum(t[in_eu]) * (tis / sum(t))
+tis[not_eu] <- 0
+tis[tis$V1 < 0,] <- 0
+t[t$V1 < 0,] <- 0
+
+# decomposing the shock
+dt <- -0.01 * sum(tis) * (tis / sum(tis))
+
+View(tis / sum(tis))
 
 # Calculate variation in demand
-dF <- dt / mcf
-abs(dF) / F1
+df <- dt / mcf
+summary(abs(df) / f)
 
 # Calculate variation in output
-dx <- as.matrix(L) %*% dF
-abs(dx) / x
+L <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd1,"/L_2019.rds",sep=""),
+                  bucket = bucket1, opts = list("region" = ""))
+
+df <- as.matrix(df)
+df <- as.numeric(df)
+
+dx <- as.matrix(L) %*% df
+
+x <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd1,"/x_2019.rds",sep=""),
+                  bucket = bucket1, opts = list("region" = ""))
+
+x <- x + 0.0001 # No data on Yemen's output
+
+summary(abs(dx) / x)
 
 #s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
 #              object = paste(set_wd2,"/dx.rds",sep=""),
