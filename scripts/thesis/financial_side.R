@@ -35,6 +35,8 @@ sltd <- grep("^I1|^I83|^I10|^It1|^It3|^Ic1|^A1|^A51|^A6|^A7|^A|^E1|^E2|^E|^L1|^L
 ### create variable of interest payments over net turnover
 g1 <- g1 %>%
   mutate(ipt1 = (I83_WM+I10_WM)/(I1_WM+abvarx*I1_WM),
-         vaript = (R24_WM*10^-2 - ipt1)*100)
+         vaript = ((ipt1 - R24_WM*10^-2) / (R24_WM*10^-2))*100)
 
-
+s3write_using(x = as.data.table(g1), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/g_3_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
