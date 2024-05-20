@@ -30,7 +30,8 @@ g1 <- g %>%
 g1 <- g1 %>%
   group_by(iso, country, eu) %>%
   arrange(desc(revarx)) %>%
-  mutate(across(where(is.numeric), ~ ifelse(row_number() >= 6, sum(.), .))) %>%
+  mutate(across(where(is.numeric), 
+                ~ ifelse(row_number() == 6, sum(.x[row_number() >= 6]), .x))) %>%
   mutate(NACE = ifelse(row_number() == 6, "X", NACE)) %>%
   filter(row_number() <= 6)
 
@@ -42,6 +43,135 @@ ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
   labs(x = "EU", y = "(%) GDP") +
   scale_fill_uchicago(name = "Sector") +  # Setting the title of the legend
   theme_bw()
+
+
+### Financial graphs ###
+fg <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd2,"/g_3_2019.rds",sep=""),
+                  bucket = bucket2, opts = list("region" = ""))
+
+fg <- fg %>%
+  select(country, sector, abvarx, year, vaript)
+
+anomalies <- which(fg$vaript < 0 | fg$vaript > 0.05)
+
+bach <- s3read_using(FUN = data.table::fread,
+                   object = paste(set_wd2,"/g_3_2019.rds",sep=""),
+                   bucket = bucket2, opts = list("region" = ""))
+
+bach <- bach %>%
+  select(country, sector, abvarx, year, I83_WM, I10_WM, I1_WM, R24_WM, ipt1, vaript)
+
+bach <- bach[anomalies,]
+
+bach <- bach %>%
+  mutate(ipt0 = (I83_WM + I10_WM)*10^-2,
+         vaript1 = (ipt1 - ipt0)/(ipt0)*100)
+
+fg$vaript[anomalies] <- bach$vaript1 # fix negative values
+
+summary(fg$vaript)
+
+iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
+
+cnts <- unique(label_IO$country)
+isos <- unique(label_IO$iso)
+
+iscnt <- as.data.table(cbind(isos, cnts))
+
+fg <- fg %>%
+  left_join(iso, by = c("country"="eu")) %>%
+  left_join(iscnt, by = c("iso"="isos"))
+
+
+# Create a list of unique countries
+countries <- unique(fg$cnts)
+
+# Loop through each country and create a bar plot
+for (country in countries) {
+  # Filter the data for the current country
+  country_data <- fg %>% filter(cnts == !!country)
+  
+  # Create the bar plot
+  p <- ggplot(country_data, aes(x = sector, y = vaript)) +
+    geom_bar(stat = "identity", color = "black", fill = "darkred") +
+    theme_bw() +
+    labs(
+      title = country,  # Add country name as the title
+      x = "Sector", 
+      y = "vaript"
+    ) +
+    theme(
+      axis.text.x = element_text(size = 8),  # Remove rotation and set font size of x-axis labels
+      axis.text.y = element_text(size = 8),  # Reduce font size of y-axis labels
+      axis.title.x = element_text(size = 10),  # Reduce font size of x-axis title
+      axis.title.y = element_text(size = 10),  # Reduce font size of y-axis title
+      legend.position = "none"  # Remove the legend
+    )
+  
+  # Save the plot as a PNG file
+  ggsave(filename = paste0("plots/vaript_by_sector_", country, ".png"), plot = p)
+}
+
+
+
+### Financial exposure by nSTAR footprint per country
+Teu <- s3read_using(FUN = data.table::fread,
+                    object = paste(set_wd2,"/Teu.rds",sep=""),
+                    bucket = bucket2, opts = list("region" = ""))
+
+label_IO <- s3read_using(FUN = data.table::fread,
+                         object = "Gloria/labels/label_IO.rds",
+                         bucket = bucket1, opts = list("region" = ""))
+
+colnames(label_IO) <- c("iso", "country", "sector")
+
+nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
+
+label_IO <- label_IO %>%
+  left_join(nace, by = c("sector"="Gloria"))
+
+eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
+         "LUX", "POL", "PRT", "SVK")
+
+
+Teu1 <- as.data.table(colSums(Teu))
+
+Teu1 <- cbind(label_IO[which(label_IO$iso %in% eu1),], Teu1)
+
+colnames(Teu1)[5] <- "score"
+
+Teu1 <- Teu1 %>%
+  group_by(iso, country, NACE) %>%
+  summarise(score = sum(score)) %>%
+  arrange(desc(score)) %>%
+  mutate(score = ifelse(row_number() == 8, sum(score[row_number() >= 8]), score)) %>%
+  mutate(NACE = ifelse(row_number() == 8, "X", NACE)) %>%
+  filter(row_number() <= 8) %>%
+  distinct()
+
+# Get the list of unique countries
+countries <- unique(Teu1$country)
+
+# Loop through each country, generate the plot, and save it
+for (country_name in countries) {
+  # Filter data for the current country
+  country_data <- Teu1  %>%
+    filter(country == !!country_name) %>%
+    mutate(NACE = factor(NACE, levels = c(setdiff(unique(NACE[order(-score)]), "X"), "X")))
+  
+  # Create the plot
+  p <- ggplot(country_data, aes(x = NACE, y = score)) +
+    geom_bar(stat = "identity", color = "black", fill = "navy") +
+    labs(title = country_name, x = "Sector", y = "nSTAR") +
+    theme_bw()
+  
+  # Save the plot to a file
+  ggsave(filename = paste0("plots/exposure", gsub(" ", "_", country_name), ".png"), plot = p)
+}
+
+
+
 
 
 
