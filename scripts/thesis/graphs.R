@@ -426,40 +426,26 @@ biotope <- s3read_using(FUN = data.table::fread,
 
 colnames(biotope)[1] <- "sat"
 
-
-
 deu_alc_eu <- deu_alc_eu %>%
   left_join(biotope, by = "Lfd_Nr")
 
 
+deu_alc_ext <- deu_alc_ext %>%
+  left_join(pressures, by = "id")
+
+deu_alc_ext <- deu_alc_ext %>%
+  left_join(press, by = c("id", "Lfd_Nr"))
+
+deu_alc_ext <- deu_alc_ext %>%
+  left_join(biotope, by = "Lfd_Nr")
 
 
-Q_abs <- s3read_using(FUN = readRDS,
-                      object = paste(set_wd3,"/Q_abs.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = ""))
+deu_alc_eu <- deu_alc_eu %>%
+  select(iso, country, sector, NACE, `DEU Alcoholic and other  beverages`, Sat_head_indicator,
+         sat, Sat_unit, pressure, score_sum, threat)
 
-label_Q <- as.data.frame(s3read_using(FUN = readRDS,
-                      object = paste(set_wd3,"/label_Q.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = "")))
+deu_alc_ext <- deu_alc_ext %>%
+  select(iso, country, sector, NACE, `DEU Alcoholic and other  beverages`, Sat_head_indicator,
+         sat, Sat_unit, pressure, score_sum, threat)
 
-press <- label_Q[unique(Q_abs$Lfd_Nr),]
-
-press <- press %>%
-  mutate(Lfd_Nr = as.numeric(rownames(.))) %>%
-  left_join(Q_abs, by = "Lfd_Nr")
-
-s3write_using(x = as.data.table(press), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd3,"/press.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
-
-
-View(press[press$country == "Austria" & press$sector == "Air transport", ])
-
-
-
-top_12 <- as.data.frame(s3read_using(FUN = data.table::fread,
-                       object = paste(set_wd2,"/top_12.rds",sep=""),
-                       bucket = bucket2, opts = list("region" = "")))
-
-
-View(top_12[top_12$variable == "FRA" & top_12$region == "ext",])
+View(deu_alc_ext[deu_alc_ext$iso == "PER",])
