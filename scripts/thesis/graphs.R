@@ -171,6 +171,29 @@ for (country_name in countries) {
 }
 
 
+### Exposure graph with Teu1
+iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
+
+g1 <- g1 %>%
+  left_join(iso, by = c("country"="eu"))
+
+Teu2 <- Teu1 %>%
+  select(iso, NACE) %>%
+  filter(NACE != "X") %>%
+  rename(sector = NACE) %>%
+  left_join(g1, by = c("iso", "sector")) %>%
+  rename(country = country.y) %>%
+  select(-country.x) %>%
+  select(-iso) %>%
+  group_by(country) %>%
+  mutate(partexp = sum(liab)) %>%
+  select(-liab) %>%
+  select(-sector) %>%
+  mutate(exposure = partexp / sumliab) %>%
+  distinct() %>%
+  select(country, exposure)
+
+
 
 
 

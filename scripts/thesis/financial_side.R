@@ -30,7 +30,7 @@ g1 <- g1 %>%
 
 ### select only relevant variables
 sltd <- grep("^I1|^I83|^I10|^It1|^It3|^Ic1|^A1|^A51|^A6|^A7|^A|^E1|^E2|^E|^L1|^L2|
-     ^L61|^L|^R2|^R31|^R32|^R33", names(g1), value = TRUE)
+     |^L3|^L61|^L|^R2|^R31|^R32|^R33", names(g1), value = TRUE)
 
 ### create variable of interest payments over net turnover
 g1 <- g1 %>%
@@ -40,3 +40,17 @@ g1 <- g1 %>%
 s3write_using(x = as.data.table(g1), FUN = data.table::fwrite, na = "", 
               object = paste(set_wd2,"/g_3_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
+
+
+### Data for exposure graph
+
+g1[is.na(g1)] <- 0
+
+
+g1 <- g1 %>%
+  mutate(liab = L1_WM + L2_WM + L3_WM) %>%
+  select(country, sector, liab) %>%
+  group_by(country) %>%
+  mutate(sumliab = sum(liab))
+
+
