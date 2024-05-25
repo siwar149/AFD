@@ -32,6 +32,7 @@ g1 <- g1 %>%
 sltd <- grep("^I1|^I83|^I10|^It1|^It3|^Ic1|^A1|^A51|^A6|^A7|^A|^E1|^E2|^E|^L1|^L2|
      |^L3|^L61|^L|^R2|^R31|^R32|^R33", names(g1), value = TRUE)
 
+g1[is.na(g1)] <- 0
 ### create variable of interest payments over net turnover
 g1 <- g1 %>%
   mutate(ipt1 = (I83_WM+I10_WM)/(I1_WM+abvarx*I1_WM),
@@ -48,7 +49,7 @@ g1[is.na(g1)] <- 0
 
 
 g1 <- g1 %>%
-  mutate(liab = L1_WM + L2_WM + L3_WM) %>%
+  mutate(liab = L1_WM + L2_WM + L31_WM) %>%
   select(country, sector, liab) %>%
   group_by(country) %>%
   mutate(sumliab = sum(liab))

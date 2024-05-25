@@ -194,6 +194,12 @@ Teu2 <- Teu1 %>%
   select(country, exposure)
 
 
+ggplot(Teu2, aes(x = country, y = exposure)) +
+  geom_bar(stat = "identity", color = "black", fill = "navy") +
+  theme_bw() +
+  theme(plot.title = element_blank()) +
+  labs(x = "Countries", y = "(%) financial liabilities")
+
 
 
 
