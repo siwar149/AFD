@@ -54,13 +54,14 @@ tis[tis$V1 < 0,] <- 0
 t[t$V1 < 0,] <- 0
 
 # decomposing the shock
-dt <- -0.01 * sum(tis) * (tis / sum(tis))
+dt <- -0.01 * sum(tis) * (tis / sum(tis)) # the mistake was here
+                                          # it was all about the weights
 
 View(tis / sum(tis))
 
 # Calculate variation in demand
 df <- dt / mcf
-summary(abs(df) / f)
+summary(abs(df[in_eu]) / f[in_eu])
 
 # Calculate variation in output
 L <- s3read_using(FUN = data.table::fread,
@@ -78,7 +79,7 @@ x <- s3read_using(FUN = data.table::fread,
 
 x <- x + 0.0001 # No data on Yemen's output
 
-summary(abs(dx) / x)
+summary(abs(dx[in_eu]) / x[in_eu])
 
 #s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
 #              object = paste(set_wd2,"/dx.rds",sep=""),
@@ -86,7 +87,7 @@ summary(abs(dx) / x)
 
 f <- as.data.table(f)
 
-g <- cbind(dx, x, dF, f)
+g <- cbind(dx, x, df, f)
 
 colnames(g)[c(1,3:4)] <- c("dx", "df", "f")
 
@@ -141,5 +142,5 @@ g <- g[which(g$eu %in% sample), ]
 
 
 s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g_2_2019.rds",sep=""),
+              object = paste("data/Gloria/g1_2_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))

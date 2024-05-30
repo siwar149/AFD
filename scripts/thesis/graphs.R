@@ -18,16 +18,16 @@ set_wd3 <- "data/bio/rds"
 
 
 g <- s3read_using(FUN = data.table::fread,
-                        object = paste(set_wd2,"/g_2_2019.rds",sep=""),
+                        object = paste(set_wd2,"/g1_2_2019.rds",sep=""),
                         bucket = bucket2, opts = list("region" = ""))
 
 
-g1 <- g %>%
+g0 <- g %>%
   group_by(iso, country, eu) %>%
   mutate(revarx= abs(dx) / sum(x) * 100)
 
 
-g1 <- g1 %>%
+g1 <- g0 %>%
   group_by(iso, country, eu) %>%
   arrange(desc(revarx)) %>%
   mutate(across(where(is.numeric), 
@@ -40,7 +40,7 @@ g1 <- g1 %>%
 
 ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
   geom_bar(stat = "identity", color = "black") +  # Adding lines to each filled sector
-  labs(x = "EU", y = "(%) GDP") +
+  labs(x = "EU", y = "(%) Output") +
   scale_fill_uchicago(name = "Sector") +  # Setting the title of the legend
   theme_bw()
 
