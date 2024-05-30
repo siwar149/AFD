@@ -47,7 +47,7 @@ ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
 
 ### Financial graphs ###
 fg <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/g_3_2019.rds",sep=""),
+                  object = paste(set_wd2,"/g1_3_2019.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
 
 fg <- fg %>%
@@ -56,7 +56,7 @@ fg <- fg %>%
 anomalies <- which(fg$vaript < 0 | fg$vaript > 0.05)
 
 bach <- s3read_using(FUN = data.table::fread,
-                   object = paste(set_wd2,"/g_3_2019.rds",sep=""),
+                   object = paste(set_wd2,"/g1_3_2019.rds",sep=""),
                    bucket = bucket2, opts = list("region" = ""))
 
 bach <- bach %>%
@@ -81,7 +81,8 @@ iscnt <- as.data.table(cbind(isos, cnts))
 
 fg <- fg %>%
   left_join(iso, by = c("country"="eu")) %>%
-  left_join(iscnt, by = c("iso"="isos"))
+  left_join(iscnt, by = c("iso"="isos")) %>%
+  filter(vaript != 0)
 
 
 # Create a list of unique countries
@@ -94,12 +95,12 @@ for (country in countries) {
   
   # Create the bar plot
   p <- ggplot(country_data, aes(x = sector, y = vaript)) +
-    geom_bar(stat = "identity", color = "black", fill = "darkred") +
+    geom_bar(stat = "identity", color = "black", fill = "darkred", alpha = 0.7) +
     theme_bw() +
     labs(
       title = country,  # Add country name as the title
       x = "Sector", 
-      y = "vaript"
+      y = "(%) var. ratio"
     ) +
     theme(
       axis.text.x = element_text(size = 8),  # Remove rotation and set font size of x-axis labels
@@ -156,20 +157,18 @@ countries <- unique(Teu1$country)
 # Loop through each country, generate the plot, and save it
 for (country_name in countries) {
   # Filter data for the current country
-  country_data <- Teu1  %>%
-    filter(country == !!country_name) %>%
-    mutate(NACE = factor(NACE, levels = c(setdiff(unique(NACE[order(-score)]), "X"), "X")))
+  country_data <- Teu1 %>%
+    filter(country == !!country_name)
   
   # Create the plot
   p <- ggplot(country_data, aes(x = NACE, y = score)) +
-    geom_bar(stat = "identity", color = "black", fill = "navy") +
+    geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +  # Add transparency here (0.7 for example)
     labs(title = country_name, x = "Sector", y = "nSTAR") +
     theme_bw()
   
   # Save the plot to a file
   ggsave(filename = paste0("plots/exposure", gsub(" ", "_", country_name), ".png"), plot = p)
 }
-
 
 ### Exposure graph with Teu1
 iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
@@ -189,13 +188,13 @@ Teu2 <- Teu1 %>%
   mutate(partexp = sum(liab)) %>%
   select(-liab) %>%
   select(-sector) %>%
-  mutate(exposure = partexp / sumliab) %>%
+  mutate(exposure = partexp / sumliab * 100) %>%
   distinct() %>%
   select(country, exposure)
 
 
 ggplot(Teu2, aes(x = country, y = exposure)) +
-  geom_bar(stat = "identity", color = "black", fill = "navy") +
+  geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +
   theme_bw() +
   theme(plot.title = element_blank()) +
   labs(x = "Countries", y = "(%) financial liabilities")
@@ -255,24 +254,36 @@ map_ext %>%
   ggplot(aes(map_id = region, fill = score)) +
   geom_map(map = world_map) +
   geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
-               color = "black", fill = NA, size=0.1) +
+               color = "black", fill = NA, size = 0.1) +
   labs(fill = "nSTAR", fontface = "bold") +
   scale_fill_gradient(low = "blue", high = "red") +
   coord_map("moll") +
-  theme(plot.title = element_text(hjust = 0.5)) 
+  theme_bw() +
+  theme(axis.title.x = element_blank(),  # Remove x-axis label
+        axis.title.y = element_blank(),  # Remove y-axis label
+        axis.text.x = element_blank(),   # Remove x-axis values
+        axis.text.y = element_blank(),   # Remove y-axis values
+        panel.grid = element_blank(),    # Remove coordinate lines
+        plot.title = element_text(hjust = 0.5))  # Center plot title
 
 
 map_eu %>%
   ggplot(aes(map_id = region, fill = score)) +
   geom_map(map = world_map1) +
   geom_polygon(data = world_map1, aes(x = long, y = lat, group = group),
-               color = "black", fill = NA, size=0.1) +
+               color = "black", fill = NA, size = 0.1) +
   labs(fill = "nSTAR", fontface = "bold") +
   scale_fill_gradient(low = "blue", high = "red") +
   coord_map("moll") +
-  theme(plot.title = element_text(hjust = 0.5)) +
+  theme_bw() +  # Set theme to black and white
+  theme(axis.title.x = element_blank(),   # Remove x-axis label
+        axis.title.y = element_blank(),   # Remove y-axis label
+        axis.text.x = element_blank(),    # Remove x-axis values
+        axis.text.y = element_blank(),    # Remove y-axis values
+        panel.grid = element_blank(),     # Remove coordinate lines
+        plot.title = element_text(hjust = 0.5)) +  # Center plot title
   xlim(xmin = -15, xmax = 40) +  # Set longitude limits
-  ylim(ymin = 30, ymax = 70)  
+  ylim(ymin = 30, ymax = 70)   # Set latitude limits
 
 
 

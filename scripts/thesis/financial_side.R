@@ -10,7 +10,7 @@ set_wd3 <- "data/bio/rds"
 
 ### Merge the Gloria simulation results with the Bach data
 g <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/g_2_2019.rds",sep=""),
+                  object = paste(set_wd2,"/g1_2_2019.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
 
 bach <- read.csv("data/export-bach-2019.csv", sep = ";", header = T)
@@ -39,13 +39,11 @@ g1 <- g1 %>%
          vaript = ((ipt1 - R24_WM*10^-2) / (R24_WM*10^-2))*100)
 
 s3write_using(x = as.data.table(g1), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/g_3_2019.rds",sep=""),
+              object = paste(set_wd2,"/g1_3_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
 ### Data for exposure graph
-
-g1[is.na(g1)] <- 0
 
 
 g1 <- g1 %>%
