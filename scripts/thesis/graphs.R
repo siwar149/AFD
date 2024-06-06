@@ -36,7 +36,10 @@ g1 <- g0 %>%
   filter(row_number() <= 6)
 
 
-
+a <- g1 %>%
+  group_by(iso, country, eu) %>%
+  summarise(revarx = sum(revarx)) %>%
+  pull(revarx)
 
 ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
   geom_bar(stat = "identity", color = "black") +  # Adding lines to each filled sector
@@ -82,7 +85,7 @@ iscnt <- as.data.table(cbind(isos, cnts))
 fg <- fg %>%
   left_join(iso, by = c("country"="eu")) %>%
   left_join(iscnt, by = c("iso"="isos")) %>%
-  filter(vaript != 0)
+  filter(vaript != 0 | vaript == NA)
 
 
 # Create a list of unique countries
@@ -304,6 +307,8 @@ ggplot(top_12[which(top_12$variable == "ESP" & top_12$region == "eu"),],
 
 
 ########### Pressure analysis ###########
+install.packages("purrr")
+library(purrr)
 
 
 Teu <- s3read_using(FUN = data.table::fread,
@@ -329,163 +334,54 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
 eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
          "LUX", "POL", "PRT", "SVK")
 
-cs <- c("C", "F", "G", "H")
-
 in_eu <- which(label_IO$iso %in% eu)
 
 not_eu <- which(!label_IO$iso %in% eu)
 
-label_Teu <- label_IO[which(label_IO$iso %in% eu1),]
+pue <- Teu[in_eu,]
+pext <- Teu[not_eu,]
 
-cs_eu1 <- which(label_Teu$NACE %in% cs)
+# Define group size
+group_size <- 120
 
-CS <- Teu[, ..cs_eu1]
+# Calculate number of groups
+num_groups <- ncol(pue) %/% group_size
 
-CS_eu <- cbind(label_IO[in_eu,], CS[in_eu,])
-CS_ext <- cbind(label_IO[not_eu,], CS[not_eu,])
+# Initialize empty list to store results
+pue_sum <- list()
 
-rm(CS)
+# Loop through each group and calculate row sums
+for (i in 0:(num_groups - 1)) {
+  pue_sum[[i + 1]] <- pue[, rowSums(.SD, na.rm = TRUE), 
+                      .SDcols = ((i * group_size + 1):((i + 1) * group_size))]
+}
 
-# get specific sectors
-mcf <- s3read_using(FUN = data.table::fread,
-                    object = paste(set_wd2,"/mcf.rds",sep=""),
-                    bucket = bucket2, opts = list("region" = ""))
-
-f <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/f_2019.rds",sep=""),
-                  bucket = bucket2, opts = list("region" = ""))
-
-t <- mcf * f
-
-tis <- t
-
-tis[not_eu] <- 0
-
-weights <- tis / sum(t)
+# Combine results into a single data.table
+pue_sum <- as.data.table(do.call(cbind, pue_sum))
 
 
-t <- cbind(label_IO, t, weights)
+# for EXT
+pext_sum <- list()
 
-colnames(t)[c(5,6)] <- c("score", "weight")
+# Loop through each group and calculate row sums
+for (i in 0:(num_groups - 1)) {
+  pext_sum[[i + 1]] <- pext[, rowSums(.SD, na.rm = TRUE), 
+                          .SDcols = ((i * group_size + 1):((i + 1) * group_size))]
+}
 
-t <- t[which(t$iso %in% eu1 & t$NACE %in% cs),]
+# Combine results into a single data.table
+pext_sum <- as.data.table(do.call(cbind, pext_sum))
 
-# 10 sectors with the most footprint
-sec_analyse <- head(t[t$score > 2,] %>% arrange(desc(score)), 10)[, 1:5] # just change 10 if I want to see more sectors
+colnames(pue_sum) <- eu1
+colnames(pext_sum) <- eu1
 
-label_Teu <- label_Teu[cs_eu1,]
+pue <- colSums(pue_sum)
+pext <- colSums(pext_sum)
 
-label_Teu <- label_Teu %>%
-  mutate(id = paste(iso, sector))
+tab <- data.table(eu1, pue, pext)
 
-sec_analyse <- sec_analyse %>%
-  mutate(id = paste(iso, sector))
+tab <- tab %>%
+  mutate(share = pext / (pue + pext) * 100)
 
-ten <- which(label_Teu$id %in% sec_analyse$id)
-ten1 <- ten + 4
-ten1 <- c(c(1:4), ten1)
-
-CS_eu <- CS_eu[, ..ten1]
-CS_ext <- CS_ext[, ..ten1]
-
-colnames(CS_eu)[c(5:14)] <- label_Teu$id[ten]
-colnames(CS_ext)[c(5:14)] <- label_Teu$id[ten]
-
-
-  #s3write_using(x = as.data.table(CS_eu), FUN = data.table::fwrite, na = "", 
-  #              object = paste(set_wd2,"/CS_eu_2019.rds",sep=""),
-  #              bucket = bucket2, opts = list("region" = ""))
-
-#s3write_using(x = as.data.table(CS_ext), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd2,"/CS_ext_2019.rds",sep=""),
-#              bucket = bucket2, opts = list("region" = ""))
-
-CS_eu <- s3read_using(FUN = data.table::fread,
-                      object = paste(set_wd2,"/CS_eu_2019.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = ""))
-
-CS_ext <- s3read_using(FUN = data.table::fread,
-                      object = paste(set_wd2,"/CS_ext_2019.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = ""))
-
-colSums(CS_ext[, c(5:14)]) # we take Germany as an example
-
-
-
-
-
-
-deu_alc_eu <- CS_eu[, c(1:4, 7)]
-deu_alc_ext <- CS_ext[, c(1:4, 7)]
-
-deu_alc_eu <- deu_alc_eu %>%
-  arrange(desc(`DEU Alcoholic and other  beverages`)) %>%
-  slice_head(n = 10)
-
-deu_alc_ext <- deu_alc_ext %>%
-  arrange(desc(`DEU Alcoholic and other  beverages`)) %>%
-  slice_head(n = 10)
-
-pressures <- s3read_using(FUN = readRDS,
-             object = paste(set_wd3,"/redlist_score_per_pressure.rds",sep=""),
-             bucket = bucket2, opts = list("region" = ""))
-
-
-pressures <- pressures %>%
-  mutate(id = paste(iso, sector))
-
-deu_alc_eu <- deu_alc_eu %>%
-  mutate(id=paste(iso, sector))
-
-deu_alc_ext <- deu_alc_ext %>%
-  mutate(id=paste(iso, sector))
-
-
-pressures <- pressures %>%
-  select(id, Lfd_Nr, score_sum)
-
-deu_alc_eu <- deu_alc_eu %>%
-  left_join(pressures, by = "id")
-
-
-press <- s3read_using(FUN = data.table::fread,
-                          object = paste(set_wd3,"/press.rds",sep=""),
-                          bucket = bucket2, opts = list("region" = ""))
-
-press <- press %>%
-  mutate(id = paste(iso, sector)) %>%
-  select(id, Lfd_Nr, Sat_head_indicator, Sat_unit, pressure)
-
-
-deu_alc_eu <- deu_alc_eu %>%
-  left_join(press, by = c("id", "Lfd_Nr"))
-
-biotope <- s3read_using(FUN = data.table::fread,
-                      object = paste(set_wd2,"/biotope_threats.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = ""))
-
-colnames(biotope)[1] <- "sat"
-
-deu_alc_eu <- deu_alc_eu %>%
-  left_join(biotope, by = "Lfd_Nr")
-
-
-deu_alc_ext <- deu_alc_ext %>%
-  left_join(pressures, by = "id")
-
-deu_alc_ext <- deu_alc_ext %>%
-  left_join(press, by = c("id", "Lfd_Nr"))
-
-deu_alc_ext <- deu_alc_ext %>%
-  left_join(biotope, by = "Lfd_Nr")
-
-
-deu_alc_eu <- deu_alc_eu %>%
-  select(iso, country, sector, NACE, `DEU Alcoholic and other  beverages`, Sat_head_indicator,
-         sat, Sat_unit, pressure, score_sum, threat)
-
-deu_alc_ext <- deu_alc_ext %>%
-  select(iso, country, sector, NACE, `DEU Alcoholic and other  beverages`, Sat_head_indicator,
-         sat, Sat_unit, pressure, score_sum, threat)
-
-View(deu_alc_ext[deu_alc_ext$iso == "PER",])
+# Round all numeric columns to integers
+tab[, (names(tab)) := lapply(.SD, function(x) if (is.numeric(x)) round(x) else x)]

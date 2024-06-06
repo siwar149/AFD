@@ -23,6 +23,9 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
          'SVN', 'ESP', 'SWE', 'XEU')
 
+eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
+         "LUX", "POL", "PRT", "SVK")
+
 # load the relevant matrices and vectors
 label_IO <- as.data.table(s3read_using(FUN = readRDS,
                                        object = paste(set_wd2,"/label_IO.rds",sep=""),
@@ -42,10 +45,12 @@ f <- s3read_using(FUN = data.table::fread,
 # Actual nSTAR consumption based footprint
 t <- mcf * f
 
-summary(mcf)
+in_eu1 <- which(label_IO$iso %in% eu1)
+not_eu <- which(!label_IO$iso %in% eu1)
 
-in_eu <- which(label_IO$iso %in% eu)
-not_eu <- which(!label_IO$iso %in% eu)
+summary(mcf[in_eu1,])
+
+
 
 tis <- t
 
@@ -61,7 +66,7 @@ View(tis / sum(tis))
 
 # Calculate variation in demand
 df <- dt / mcf
-summary(abs(df[in_eu]) / f[in_eu])
+summary(abs(df[in_eu1]) / f[in_eu1])
 
 # Calculate variation in output
 L <- s3read_using(FUN = data.table::fread,
@@ -79,7 +84,7 @@ x <- s3read_using(FUN = data.table::fread,
 
 x <- x + 0.0001 # No data on Yemen's output
 
-summary(abs(dx[in_eu]) / x[in_eu])
+summary(abs(dx[in_eu1]) / x[in_eu1])
 
 #s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
 #              object = paste(set_wd2,"/dx.rds",sep=""),
