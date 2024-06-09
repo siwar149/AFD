@@ -1,3 +1,11 @@
+bucket1 <- "projet-esteem"
+set_wd1 <- "Gloria/matrices"
+
+bucket2 <- "siwar"
+set_wd2 <- "data/Gloria"
+set_wd3 <- "data/bio/rds"
+
+
 Teu <- s3read_using(FUN = data.table::fread,
                     object = paste(set_wd2,"/Teu.rds",sep=""),
                     bucket = bucket2, opts = list("region" = ""))
@@ -53,7 +61,7 @@ tis <- t
 
 tis[not_eu] <- 0
 
-weights <- tis / sum(t)
+weights <- tis / sum(tis)
 
 
 t <- cbind(label_IO, t, weights)
