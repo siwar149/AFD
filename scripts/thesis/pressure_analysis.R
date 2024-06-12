@@ -126,9 +126,9 @@ deu_alc_ext <- deu_alc_ext %>%
   arrange(desc(`DEU Alcoholic and other  beverages`)) %>%
   slice_head(n = 10)
 
-pressures <- s3read_using(FUN = readRDS,
+pressures <- as.data.table(s3read_using(FUN = readRDS,
                           object = paste(set_wd3,"/redlist_score_per_pressure.rds",sep=""),
-                          bucket = bucket2, opts = list("region" = ""))
+                          bucket = bucket2, opts = list("region" = "")))
 
 
 pressures <- pressures %>%
@@ -153,18 +153,24 @@ press <- s3read_using(FUN = data.table::fread,
                       bucket = bucket2, opts = list("region" = ""))
 
 press <- press %>%
-  mutate(id = paste(iso, sector)) %>%
-  select(id, Lfd_Nr, Sat_head_indicator, Sat_unit, pressure)
-
+  mutate(id = paste(iso, sector, Lfd_Nr)) %>%
+  select(id, Sat_head_indicator, Sat_unit, pressure)
 
 deu_alc_eu <- deu_alc_eu %>%
-  left_join(press, by = c("id", "Lfd_Nr"))
+  mutate(id = paste(id, Lfd_Nr))
+
+deu_alc_eu <- deu_alc_eu %>%
+  left_join(press, by = c("id"))
 
 biotope <- s3read_using(FUN = data.table::fread,
                         object = paste(set_wd2,"/biotope_threats.rds",sep=""),
                         bucket = bucket2, opts = list("region" = ""))
 
 colnames(biotope)[1] <- "sat"
+
+sat_names <- biotope %>%
+  select(Lfd_Nr, sat) %>%
+  
 
 deu_alc_eu <- deu_alc_eu %>%
   left_join(biotope, by = "Lfd_Nr")
