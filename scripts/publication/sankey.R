@@ -70,13 +70,31 @@ label_IO <- label_IO %>%
 eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
          "LUX", "POL", "PRT", "SVK")
 
-in_eu <- which(label_IO$iso %in% eu1)
+# Get the index of industrial sectors in EU12
+eu_C <- which(label_IO$iso %in% eu1 & label_IO$NACE == "C")
 
+# Getting the nSTAR requirements of the industry sector of EU12
+eu_fp <- as.data.table(rowSums(Teu[,..eu_C]))
 
-eu_fp <- as.data.table(rowSums(Teu))
+# Defining the shock source countries
+latam <- c("HND", "COL", "BRA", "GTM", "PER", "ECU")
 
+latam_A <- which(label_IO$iso %in% latam & label_IO$NACE == "A")
+latam_X <- which(label_IO$iso %in% latam & label_IO$NACE != "A")
 
+# Defining all sectors in EU12
+eu_all <- which(label_IO$iso %in% eu1)
 
+# Defning RoW
+row <- which(!label_IO$iso %in% eu1 & !label_IO$iso %in% latam)
+
+total <- sum(eu_fp[latam_A,]) + sum(eu_fp[latam_X,]) + sum(eu_fp[eu_all,]) +
+  sum(eu_fp[row,])
+
+sum(eu_fp[latam_A,]) / total * 49.8547
+sum(eu_fp[latam_X,]) / total * 49.8547
+sum(eu_fp[eu_all,]) / total * 49.8547
+sum(eu_fp[row,]) / total * 49.8547
 
 
 # Doing the first steps of the network graph
@@ -90,7 +108,11 @@ nodes = data.frame("name" =
                        "D", # Node 6
                        "G", # Node 7
                        "H", # Node 8
-                       "X")) # Node 9
+                       "X",
+                       "LAC6 A",
+                       "LAC6 X",
+                       "EU12 all",
+                       "RoW")) # Node 9
 
 
 links = as.data.frame(matrix(c(
@@ -114,7 +136,17 @@ links = as.data.frame(matrix(c(
   2, 6, 10.942701,
   2, 7, 8.247337,
   2, 8, 6.523835,
-  2, 9, 17.811788),
+  2, 9, 17.811788,
+  4, 10, 9.941399,
+  4, 11, 2.904854,
+  4, 12, 13.75652,
+  4, 13, 23.25193,
+  3, 10, 0,
+  5, 10, 0,
+  6, 10, 0,
+  7, 10, 0,
+  8, 10, 0,
+  9, 10, 0),
   byrow = TRUE, ncol = 3))
 names(links) = c("source", "target", "value")
 
