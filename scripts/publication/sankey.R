@@ -51,6 +51,34 @@ bach$loans[7] <- 100 - sum(bach$loans[-7])
 bach$other[7] <- 100 - sum(bach$other[-7])
 
 
+# Connection to LAC countries
+Teu <- s3read_using(FUN = data.table::fread,
+                    object = paste(set_wd2,"/Teu.rds",sep=""),
+                    bucket = bucket2, opts = list("region" = ""))
+
+label_IO <- s3read_using(FUN = data.table::fread,
+                         object = "Gloria/labels/label_IO.rds",
+                         bucket = bucket1, opts = list("region" = ""))
+
+colnames(label_IO) <- c("iso", "country", "sector")
+
+nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
+
+label_IO <- label_IO %>%
+  left_join(nace, by = c("sector"="Gloria"))
+
+eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
+         "LUX", "POL", "PRT", "SVK")
+
+in_eu <- which(label_IO$iso %in% eu1)
+
+
+eu_fp <- as.data.table(rowSums(Teu))
+
+
+
+
+
 # Doing the first steps of the network graph
 nodes = data.frame("name" = 
                      c("Bonds", # Node 0
@@ -95,3 +123,4 @@ sankeyNetwork(Links = links, Nodes = nodes,
               Source = "source", Target = "target",
               Value = "value", NodeID = "name",
               fontSize= 12, nodeWidth = 30)
+
