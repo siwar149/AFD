@@ -179,5 +179,100 @@ sankeyNetwork(Links = links, Nodes = nodes,
 
 #### Second Sankey
 
-lac6A <- cbind(label_IO[latam_A,], eu_fp[latam_A])
-colnames(lac6A)[5] <- "nSTAR"
+
+score <- s3read_using(FUN = readRDS,
+                      object = paste(set_wd3,"/score_pays.rds",sep=""),
+                      bucket = bucket2, opts = list("region" = ""))
+
+e <- label_IO %>%
+  left_join(score, by = c("iso", "sector")) %>%
+  mutate(score= if_else(is.na(score), 0.0001, score))
+
+
+lac6A <- cbind(label_IO[latam_A,], eu_fp[latam_A], e$score[latam_A])
+colnames(lac6A)[c(5,6)] <- c("com", "prod")
+
+
+pressures <- as.data.table(s3read_using(FUN = readRDS,
+                                        object = paste(set_wd3,"/redlist_score_per_pressure.rds",sep=""),
+                                        bucket = bucket2, opts = list("region" = "")))
+
+press <- s3read_using(FUN = data.table::fread,
+                      object = paste(set_wd3,"/press.rds",sep=""),
+                      bucket = bucket2, opts = list("region" = ""))
+
+
+lac6A <- lac6A %>%
+  mutate(r = com / prod) %>%
+  mutate(id = paste(iso, sector))
+
+pressures <- pressures %>%
+  mutate(id = paste(iso, sector)) %>%
+  select(-sector, -country, -iso)
+
+
+lac6A <- lac6A %>%
+  left_join(pressures, by = "id")
+
+biotope <- s3read_using(FUN = data.table::fread,
+                        object = paste(set_wd2,"/biotope_threats.rds",sep=""),
+                        bucket = bucket2, opts = list("region" = ""))
+
+biotope <- biotope %>%
+  select(pressure, Lfd_Nr) %>%
+  unique()
+
+
+lac6A <- lac6A %>%
+  left_join(biotope, by = "Lfd_Nr")
+
+lac6p <- lac6A %>%
+  mutate(fp = r * score_sum) %>%
+  select(iso, sector, pressure, fp)
+
+lac6p1 <- lac6p %>%
+  group_by(pressure) %>%
+  summarise(fp = sum(fp)) %>%
+  mutate(rfp = fp / sum(fp) * 100) %>%
+  arrange(desc(rfp)) %>%
+  slice_head(n = 11)
+
+lac6p1$pressure[11] <- "Other"
+lac6p1$rfp[11] <- 100 - sum(lac6p1$rfp[-11])
+
+
+nodes1 = data.frame("name" = 
+                     c("LAC6 Agriculture",
+                       "NH3",
+                       "Permanent crops",
+                       "PM2.5 bio",
+                       "CO2 sc",
+                       "Extensive forestry",
+                       "N2O",
+                       "CO",
+                       "Agriculture water stress",
+                       "Straw",
+                       "Tobacco",
+                       "Other")) 
+
+
+links1 = as.data.frame(matrix(c(
+  0, 1, 30.9,
+  0, 2, 19.6,
+  0, 3, 5.44,
+  0, 4, 5.18,
+  0, 5, 4.40,
+  0, 6, 4.21,
+  0, 7, 3.53,
+  0, 8, 3.25,
+  0, 9, 2.51,
+  0, 10, 2.32,
+  0, 11, 18.6),
+  byrow = TRUE, ncol = 3))
+names(links1) = c("source", "target", "value")
+
+
+sankeyNetwork(Links = links1, Nodes = nodes1,
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize= 12, nodeWidth = 30)
