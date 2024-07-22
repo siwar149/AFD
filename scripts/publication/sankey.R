@@ -32,23 +32,36 @@ bach <- bach %>%
   filter(!sector %in% c("Mc", "Z0", "Zc")) %>%  # remove rows with sector values "Mc", "Z0", and "Zc"
   group_by(sector) %>%
   summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
-  mutate(bonds = bonds / sum(bonds),
-         loans = loans / sum(loans),
-         other = other / sum(other))
+  mutate(rbonds = bonds / sum(bonds) * 100,
+         rloans = loans / sum(loans) * 100,
+         rother = other / sum(other) * 100)
+
+bondsR <- sum(bach$bonds)/sum(bach$bonds, bach$loans, bach$other)
+loansR <- sum(bach$loans)/sum(bach$bonds, bach$loans, bach$other)
+otherR <- sum(bach$other)/sum(bach$bonds, bach$loans, bach$other)
 
 bach <- bach %>%
-  select(sector, bonds, loans, other) %>%
-  mutate(bonds = bonds * 100,
-         loans = loans * 100,
-         other = other * 100) %>%
+  select(sector, rbonds, rloans, rother) %>%
   group_by(sector) %>%
-  arrange(desc(loans)) %>%
+  arrange(desc(rloans)) %>%
   filter(sector %in% c("M", "C", "L", "D", "G", "H", "J"))
 
 bach$sector[7] <- "X"
-bach$bonds[7] <- 100 - sum(bach$bonds[-7])
-bach$loans[7] <- 100 - sum(bach$loans[-7])
-bach$other[7] <- 100 - sum(bach$other[-7])
+bach$rbonds[7] <- 100 - sum(bach$rbonds[-7])
+bach$rloans[7] <- 100 - sum(bach$rloans[-7])
+bach$rother[7] <- 100 - sum(bach$rother[-7])
+
+bach$rbonds <- bach$rbonds * bondsR
+bach$rloans <- bach$rloans * loansR
+bach$rother <- bach$rother * otherR
+
+bach <- as.data.table(bach)
+colnames(bach)[c(2:4)] <- c("Bonds", "Loans", "Other")
+
+links1 <- melt(bach, variable.name = "source", value.name =  "value")
+
+
+
 
 
 # Connection to LAC countries
@@ -91,13 +104,19 @@ row <- which(!label_IO$iso %in% eu1 & !label_IO$iso %in% latam)
 total <- sum(eu_fp[latam_A,]) + sum(eu_fp[latam_X,]) + sum(eu_fp[eu_all,]) +
   sum(eu_fp[row,])
 
-sum(eu_fp[latam_A,]) / total * 49.8547
-sum(eu_fp[latam_X,]) / total * 49.8547
-sum(eu_fp[eu_all,]) / total * 49.8547
-sum(eu_fp[row,]) / total * 49.8547
+rowSums(bach[, 2:4])[3]
+
+sum(eu_fp[latam_A,]) / total * 19.67636
+sum(eu_fp[latam_X,]) / total * 19.67636
+sum(eu_fp[eu_all,]) / total * 19.67636
+sum(eu_fp[row,]) / total * 19.67636
 
 
-# Doing the first steps of the network graph
+bach$t <- rowSums(bach[, -1])
+
+
+#### FIRST SANKEY
+# Doing the first steps of the Sankey network graph
 nodes = data.frame("name" = 
                      c("Bonds", # Node 0
                        "Loans", # Node 1
@@ -112,41 +131,42 @@ nodes = data.frame("name" =
                        "LAC6 A",
                        "LAC6 X",
                        "EU12 all",
-                       "RoW")) # Node 9
+                       "RoW",
+                       "Inputs")) 
 
 
 links = as.data.frame(matrix(c(
-  0, 3, 40.669871,
-  0, 4, 8.175700,
-  0, 5, 7.856371,
-  0, 6, 13.164714,
-  0, 7, 2.588083,
-  0, 8, 8.360560,
-  0, 9, 19.184701,
-  1, 3, 12.532653,
-  1, 4, 19.873455,
-  1, 5, 19.872155,
-  1, 6, 5.782332,
-  1, 7, 12.118520,
-  1, 8, 8.230190,
-  1, 9, 21.590695,
-  2, 3, 30.083582,
-  2, 4, 21.805542,
-  2, 5, 4.585215,
-  2, 6, 10.942701,
-  2, 7, 8.247337,
-  2, 8, 6.523835,
-  2, 9, 17.811788,
-  4, 10, 9.941399,
-  4, 11, 2.904854,
-  4, 12, 13.75652,
-  4, 13, 23.25193,
-  3, 10, 0,
-  5, 10, 0,
-  6, 10, 0,
-  7, 10, 0,
-  8, 10, 0,
-  9, 10, 0),
+  0, 3, 4.4042112,
+  0, 4, 0.8853608,
+  0, 5, 0.8507802,
+  0, 6, 1.4256298,
+  0, 7, 0.2802680,
+  0, 8, 0.9053796,
+  0, 9, 2.0775448,
+  1, 3, 4.2369592,
+  1, 4, 6.7186903,
+  1, 5, 6.7182508,
+  1, 6, 1.9548538,
+  1, 7, 4.0969518,
+  1, 8, 2.7824099,
+  1, 9, 7.2992439,
+  2, 3, 16.655313,
+  2, 4, 12.0723040,
+  2, 5, 2.5385339,
+  2, 6, 6.0582585,
+  2, 7, 4.5660117,
+  2, 8, 3.6118211,
+  2, 9, 9.8612232,
+  4, 10, 3.923613,
+  4, 11, 1.146471,
+  4, 12, 5.429341,
+  4, 13, 9.176935,
+  3, 14, 25.29648,
+  5, 14, 10.10756,
+  6, 14, 9.438742,
+  7, 14, 8.943231,
+  8, 14, 7.299611,
+  9, 14, 19.23801),
   byrow = TRUE, ncol = 3))
 names(links) = c("source", "target", "value")
 
@@ -156,3 +176,8 @@ sankeyNetwork(Links = links, Nodes = nodes,
               Value = "value", NodeID = "name",
               fontSize= 12, nodeWidth = 30)
 
+
+#### Second Sankey
+
+lac6A <- cbind(label_IO[latam_A,], eu_fp[latam_A])
+colnames(lac6A)[5] <- "nSTAR"
