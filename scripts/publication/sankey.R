@@ -7,7 +7,7 @@ bucket2 <- "siwar"
 set_wd2 <- "data/Gloria"
 set_wd3 <- "data/bio/rds"
 
-#install.packages("networkD3")
+install.packages("networkD3")
 library("networkD3")
 library("dplyr")
 
@@ -84,7 +84,8 @@ eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
          "LUX", "POL", "PRT", "SVK")
 
 # Get the index of industrial sectors in EU12
-eu_C <- which(label_IO$iso %in% eu1 & label_IO$NACE == "C")
+
+eu_C <- which(label_IO[label_IO$iso %in% eu1,]$NACE == "C")
 
 # Getting the nSTAR requirements of the industry sector of EU12
 eu_fp <- as.data.table(rowSums(Teu[,..eu_C]))
@@ -218,13 +219,13 @@ biotope <- s3read_using(FUN = data.table::fread,
                         object = paste(set_wd2,"/biotope_threats.rds",sep=""),
                         bucket = bucket2, opts = list("region" = ""))
 
-biotope <- biotope %>%
+biotope1 <- biotope %>%
   select(pressure, Lfd_Nr) %>%
   unique()
 
 
 lac6A <- lac6A %>%
-  left_join(biotope, by = "Lfd_Nr")
+  left_join(biotope1, by = "Lfd_Nr")
 
 lac6p <- lac6A %>%
   mutate(fp = r * score_sum) %>%
