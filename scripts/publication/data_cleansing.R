@@ -36,4 +36,21 @@ Z <- as.data.table(s3read_using(FUN = readRDS,
 
 x <- as.numeric(as.matrix(x))
 
-B <- solve(diag(x)) %*% Z
+# The B matrix
+B <- solve(diag(x)) %*% as.matrix(Z)
+
+# First step in getting the Gosh multiplier
+G <- diag(dim(B)[1]) - B
+
+# The Gosh multiplier
+G <- solve(G)
+
+# Saving my accomplishments of the day
+s3write_using(x = as.data.table(B), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/B_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+s3write_using(x = as.data.table(G), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/G_2019.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
