@@ -130,3 +130,20 @@ x <- as.data.table(x)
 dx <- (x1 - x)/x
 
 dx <- cbind(label_IO[in_eu,], dx[in_eu])
+
+
+# Starting to look at exposure
+
+exp <- as.data.table(colSums(Z[latam6A, ..in_eu]))
+
+exp <- exp / x[in_eu,] * 100
+
+exp <- cbind(label_IO[in_eu,], exp)
+
+exp1 <- exp %>%
+  group_by(iso, country, NACE) %>%
+  summarise(V1 = sum(V1)) %>%
+  arrange(desc(V1))
+
+head(exp1, 28) %>% print(n = 28)
+
