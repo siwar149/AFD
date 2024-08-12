@@ -142,10 +142,33 @@ latam6A <- which(label_IO$iso %in% latam6 & label_IO$NACE == "A")
 
 # Shocking only the exports to EU countries
 A[latam6A, in_eu] <- 0
+A[in_eu, latam6A] <- 0
 
-#v <- s3read_using(FUN = data.table::fread,
-#                  object = paste(set_wd1,"/VA_2019.rds",sep=""),
-#                  bucket = bucket1, opts = list("region" = ""))
+# Shocking final demand
+FD <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd1,"/FD_2019.rds",sep=""),
+                  bucket = bucket1, opts = list("region" = ""))
+
+label_FD <- s3read_using(FUN = data.table::fread,
+                  object = paste("Gloria/labels/label_FD.rds",sep=""),
+                  bucket = bucket1, opts = list("region" = ""))
+
+fd_eu <- which(lavel_FD$V1 %in% eu1)
+
+FD[latam6A, fd_eu] <- 0
+
+f <- as.data.table(rowSums(FD))
+
+rm(label_FD, FD)
+
+v <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd1,"/VA_2019.rds",sep=""),
+                  bucket = bucket1, opts = list("region" = ""))
+
+v <- v[2,]
+v <- as.data.table(t(v))
+
+
 
 #v <- as.data.table(colSums(v))
 
@@ -161,6 +184,28 @@ x1 <- as.matrix(Lcj) %*% as.matrix(f)
 
 x1 <- as.data.table(x1)
 
-dx <- (x1 - x)/x
+dx <- (x1 - x)/x * 100
 
 dx <- cbind(label_IO[in_eu,], dx[in_eu])
+
+
+# Looking at taxes on production
+var <- cbind(label_IO[in_eu,], x1[in_eu,], x[in_eu,], v[in_eu,])
+colnames(var)[5] <- "x1"
+colnames(var)[7] <- "tax"
+
+var <- var %>%
+  group_by(iso, country, NACE) %>%
+  summarise(x1 = sum(x1),
+            x = sum(x),
+            tax = sum(tax)) %>%
+  mutate(rate = tax / x)
+
+var_tax <- var %>%
+  mutate(x1t = x1 * rate,
+         xt = x * rate) %>%
+  group_by(iso, country) %>%
+  summarise(fr = 1 - sum(x1t) / sum(xt))
+
+
+taxes <- read.csv("data/taxes_IMF.csv", header = T)
