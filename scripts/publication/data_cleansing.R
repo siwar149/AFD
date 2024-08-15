@@ -183,6 +183,10 @@ x1 <- as.matrix(Lcj) %*% as.matrix(f)
 
 x1 <- as.data.table(x1)
 
+#s3write_using(x = as.data.table(x1), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/x1_la6.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
 #dx <- (x1 - x)/x * 100
 
 #dx <- cbind(label_IO[in_eu,], dx[in_eu])
