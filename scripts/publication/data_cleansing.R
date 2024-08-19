@@ -228,7 +228,10 @@ var_tax <- var %>%
   summarise(fr = (1 - sum(x1t) / sum(xt))*100)
 
 
-imf_tax <- read.csv("data/taxes_imf.csv", header = T)
+imf_tax <- s3read_using(FUN = read.csv,
+                  header = T,
+                  object = "data/taxes_imf.csv",
+                  bucket = bucket2, opts = list("region" = ""))
 
 tx <- which(imf_tax$Classification.Name == "Taxes on payroll & workforce" |
               imf_tax$Classification.Name == "Taxes on income, profits, & capital gains" &
