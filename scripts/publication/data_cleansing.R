@@ -196,23 +196,23 @@ x1 <- s3read_using(FUN = data.table::fread,
                    object = paste(set_wd2,"/x1_la6.rds",sep=""),
                    bucket = bucket2, opts = list("region" = ""))
 
-# Looking at taxes on production, profits and payroll
-wg <- as.data.table(t(v[1,]))
-ps <- as.data.table(t(v[4,]))
+## Looking at taxes on production, profits and payroll
+#wg <- as.data.table(t(v[1,]))
+#ps <- as.data.table(t(v[4,]))
 
-var <- cbind(label_IO[in_eu,], x1[in_eu,], x[in_eu,], txp[in_eu,], ps[in_eu,], wg[in_eu,])
+var <- cbind(label_IO[in_eu,], x1[in_eu,], x[in_eu,], txp[in_eu,]) #, ps[in_eu,], wg[in_eu,])
 colnames(var)[5] <- "x1"
 colnames(var)[7] <- "tax"
-colnames(var)[8] <- "ps"
-colnames(var)[9] <- "wg"
+#colnames(var)[8] <- "ps"
+#colnames(var)[9] <- "wg"
 
 var <- var %>%
   group_by(iso, country, NACE) %>%
   summarise(x1 = sum(x1),
             x = sum(x),
-            tax = sum(tax),
-            ps = sum(ps),
-            wg = sum(wg)) %>%
+            tax = sum(tax)) %>%
+#            ps = sum(ps),
+#            wg = sum(wg)) %>%
   mutate(rate = tax / x)
 
 
@@ -220,44 +220,51 @@ var_tax <- var %>%
   mutate(x1t = x1 * rate,
          xt = x * rate) %>%
   group_by(iso, country) %>%
-  summarise(fr = (1 - sum(x1t) / sum(xt))*100,
-            ps = sum(ps),
-            wg = sum(wg))
+  summarise(fr = (1 - sum(x1t) / sum(xt))*100)
+#            ps = sum(ps),
+#            wg = sum(wg))
 
 
-imf_tax <- s3read_using(FUN = read.csv,
-                  header = T,
-                  object = "data/taxes_imf.csv",
-                  bucket = bucket2, opts = list("region" = ""))
+#imf_tax <- s3read_using(FUN = read.csv,
+#                  header = T,
+#                  object = "data/taxes_imf.csv",
+#                  bucket = bucket2, opts = list("region" = ""))
 
-eur <- c("Austria", "Belgium", "Germany", "Spain", "France", "Croatia, Rep. of",
-         "Hungary", "Italy", "Luxembourg", "Poland, Rep. of", "Portugal", "Slovak Rep.")
+#eur <- c("Austria", "Belgium", "Germany", "Spain", "France", "Croatia, Rep. of",
+#         "Hungary", "Italy", "Luxembourg", "Poland, Rep. of", "Portugal", "Slovak Rep.")
 
-tx <- which(imf_tax$Country.Name %in% eur &
-             (imf_tax$Classification.Name == "Taxes on payroll & workforce" |
-              imf_tax$Classification.Name == "Taxes on income, profits, & capital gains") &
-              imf_tax$Sector.Name == "General government" &
-              imf_tax$Unit.Name == "Domestic currency" & imf_tax$Attribute == "Value")
+#tx <- which(imf_tax$Country.Name %in% eur &
+#             (imf_tax$Classification.Name == "Taxes on payroll & workforce" |
+#              imf_tax$Classification.Name == "Taxes on income, profits, & capital gains") &
+#              imf_tax$Sector.Name == "General government" &
+#              imf_tax$Unit.Name == "Domestic currency" & imf_tax$Attribute == "Value")
 
-imf_tax <- imf_tax[tx,]
+#imf_tax <- imf_tax[tx,]
 
-imf_tax$X2019 <- as.numeric(imf_tax$X2019)
+#imf_tax$X2019 <- as.numeric(imf_tax$X2019)
 
-imf_tax$X2019 <- imf_tax$X2019 * 1.1201
+#imf_tax$X2019 <- imf_tax$X2019 * 1.1201
 
-imf_tax <- imf_tax %>%
-  select(Country.Name, Classification.Name, X2019)
+#imf_tax <- imf_tax %>%
+#  select(Country.Name, Classification.Name, X2019)
 
-imf_tax <- imf_tax %>%
-  pivot_wider(id_cols = "Country.Name", names_from = "Classification.Name", values_from = "X2019") %>%
-  rename(tps = "Taxes on income, profits, & capital gains",
-         twg = "Taxes on payroll & workforce",
-         country = Country.Name)
+#imf_tax <- imf_tax %>%
+#  pivot_wider(id_cols = "Country.Name", names_from = "Classification.Name", values_from = "X2019") %>%
+#  rename(tps = "Taxes on income, profits, & capital gains",
+#         twg = "Taxes on payroll & workforce",
+#         country = Country.Name)
 
-imf_tax[c(3, 9, 11), 1] <- c("Croatia", "Poland", "Slovakia")
+#imf_tax[c(3, 9, 11), 1] <- c("Croatia", "Poland", "Slovakia")
 
-par <- var_tax[, c(2,4,5)]
+#par <- var_tax[, c(2,4,5)]
 
+#imf_tax <- imf_tax %>%
+#  left_join(par, by = "country")
+
+#imf_tax <- imf_tax %>%
+#  mutate(tp = tps / ps,
+#         tw = twg / wg) %>%
+#  select(country, tp, tw)
 
 
 
