@@ -118,35 +118,32 @@ fg <- fg %>%
   left_join(iscnt, by = c("iso"="isos")) %>%
   filter(vaript != 0 | vaript == NA)
 
-
-# Create a list of unique countries
-countries <- unique(fg$cnts)
-
-# Loop through each country and create a bar plot
-for (country in countries) {
-  # Filter the data for the current country
-  country_data <- fg %>% filter(cnts == !!country)
+fg <- fg %>%
+  left_join(n_s, by = c("sector"="nace")) %>%
+  rename(NACE = sector.y)
   
-  # Create the bar plot
-  p <- ggplot(country_data, aes(x = sector, y = vaript)) +
-    geom_bar(stat = "identity", color = "black", fill = "darkred", alpha = 0.7) +
-    theme_bw() +
-    labs(
-      title = country,  # Add country name as the title
-      x = "Sector", 
-      y = "(%) var. ratio"
-    ) +
-    theme(
-      axis.text.x = element_text(size = 8),  # Remove rotation and set font size of x-axis labels
-      axis.text.y = element_text(size = 8),  # Reduce font size of y-axis labels
-      axis.title.x = element_text(size = 10),  # Reduce font size of x-axis title
-      axis.title.y = element_text(size = 10),  # Reduce font size of y-axis title
-      legend.position = "none"  # Remove the legend
-    )
+
+
+
+# Create the bar plot with facets and custom fill scale
+p <- ggplot(fg, aes(x = sector, y = vaript, fill = factor(NACE))) +
+  geom_bar(stat = "identity", color = "black", alpha = 0.7) +
+  facet_wrap(~ cnts) +  # Facet by country
+  scale_fill_manual(values = rep("darkred", length(unique(fg$NACE))),  # Use a consistent color for NACE categories
+                    labels = unique(fg$NACE),                     # Map NACE to sector names
+                    name = "Sector") +                                # Legend title
+  theme_bw() +
+  labs(x = "Sector", y = "(%) var. ratio") +
+  theme(
+    legend.position = "bottom",         # Position the legend at the bottom
+    legend.key = element_blank(),       # Remove the legend keys (the little squares)
+    legend.title = element_blank(),  # Customize legend title size
+    legend.text = element_text(size = 8)     # Customize legend text size
+  )
   
-  # Save the plot as a PNG file
-  ggsave(filename = paste0("plots/vaript_by_sector_", country, ".png"), plot = p)
-}
+# Save the plot as a PNG file
+ggsave(filename = "plots/fin_exp_tot.png", plot = p, width = 15, height = 9, dpi = 300)
+
 
 
 
