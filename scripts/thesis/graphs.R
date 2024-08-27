@@ -157,6 +157,13 @@ Teu1 <- Teu1 %>%
 # Get the list of unique countries
 countries <- unique(Teu1$country)
 
+# Create the facet wrap plot
+p <- ggplot(Teu1, aes(x = NACE, y = score)) +
+  geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +
+  labs(x = "Sector", y = "nSTAR") +
+  theme_bw() +
+  facet_wrap(~ country, scales = "free")  # Use 'scales = "free"' if each facet has different scale
+
 # Loop through each country, generate the plot, and save it
 for (country_name in countries) {
   # Filter data for the current country
