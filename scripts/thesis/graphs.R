@@ -1,11 +1,12 @@
 ##### Make some graphs ####
 
-install.packages("viridis")  # Install
-library("viridis")           # Load
-install.packages("ggsci")
-library("ggsci")
-install.packages("mapproj")
-library("mapproj")
+#install.packages("viridis")  # Install
+#library("viridis")           # Load
+#install.packages("ggsci")
+#library("ggsci")
+#install.packages("mapproj")
+#library("mapproj")
+library(RColorBrewer)
 
 
 
@@ -41,11 +42,41 @@ a <- g1 %>%
   summarise(revarx = sum(revarx)) %>%
   pull(revarx)
 
-ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
-  geom_bar(stat = "identity", color = "black") +  # Adding lines to each filled sector
+
+g1 <- g1 %>%
+  left_join(n_s, by = c("NACE"="nace"))
+
+
+p <- ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
+  geom_bar(stat = "identity", color = "black", alpha = 0.7) +  # Adding transparency with alpha
   labs(x = "EU", y = "(%) Output") +
-  scale_fill_uchicago(name = "Sector") +  # Setting the title of the legend
-  theme_bw()
+  scale_fill_uchicago(name = "") +  # Setting the title of the legend
+  theme_bw() +
+  theme(
+    legend.position = "bottom"  # Move the legend to the bottom
+  )
+
+
+# Use the 'Set3' palette, which includes colors similar to the custom ones
+brewer_palette <- brewer.pal(12, "Set3")
+brewer_palette <- brewer_palette[c(4:12)]
+custom_palette <- c("#7F7F7F", "#66C2A5", "#8DA0CB", "#A6D854", 
+                    "#4D4D4D", "#B2E2E2", "#5E4FA2", "#5AAE61", "#E78AC3")
+
+# Example of using a predefined palette close to the custom colors
+ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
+  geom_bar(stat = "identity", color = "black", alpha = 0.7) +
+  labs(x = "EU", y = "(%) Output") +
+  scale_fill_manual(values = custom_palette, name = "Sector") +  # Use the 'Set3' palette
+  theme_bw() +
+  theme(
+    legend.position = "bottom",   # Position the legend at the bottom
+    legend.key = element_blank(), # Remove the legend keys (the little squares)
+    legend.title = element_text(size = 10),  # Customize legend title size
+    legend.text = element_text(size = 8)     # Customize legend text size
+  )
+
+ggsave(filename = "plots/1per_cent_shock.png", plot = p, width = 14, height = 8, dpi = 300)
 
 
 ### Financial graphs ###
@@ -154,36 +185,38 @@ Teu1 <- Teu1 %>%
   filter(row_number() <= 8) %>%
   distinct()
 
-# Get the list of unique countries
-countries <- unique(Teu1$country)
+n_s <- read_excel("data/NACE.xlsx", sheet = "Feuil1")
+
+Teu1 <- Teu1 %>%
+  left_join(n_s, by = c("NACE" = "nace"))
 
 # Create the facet wrap plot
-p <- ggplot(Teu1, aes(x = NACE, y = score)) +
-  geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +
-  labs(x = "Sector", y = "nSTAR") +
-  theme_bw() +
-  facet_wrap(~ country, scales = "free")  # Use 'scales = "free"' if each facet has different scale
 
-# Loop through each country, generate the plot, and save it
-for (country_name in countries) {
-  # Filter data for the current country
-  country_data <- Teu1 %>%
-    filter(country == !!country_name)
-  
-  # Create the plot
-  p <- ggplot(country_data, aes(x = NACE, y = score)) +
-    geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +  # Add transparency here (0.7 for example)
-    labs(title = country_name, x = "Sector", y = "nSTAR") +
-    theme_bw()
-  
-  # Save the plot to a file
-  ggsave(filename = paste0("plots/exposure", gsub(" ", "_", country_name), ".png"), plot = p)
-}
+p <- ggplot(Teu1, aes(x = NACE, y = score, fill = factor(NACE))) +  # Use fill to differentiate NACE
+  geom_bar(stat = "identity", color = "black", alpha = 0.7) +
+  scale_fill_manual(values = rep("navy", length(unique(Teu1$NACE))),  # Use a consistent color for NACE categories
+                    labels = unique(Teu1$sector),                     # Map NACE to sector names
+                    name = "Sector") +                                # Legend title
+  labs(x = "Sectors", y = "nSTAR") +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",         # Position the legend at the bottom
+    legend.key = element_blank(),       # Remove the legend keys (the little squares)
+    legend.title = element_blank(),  # Customize legend title size
+    legend.text = element_text(size = 8)     # Customize legend text size
+  ) +
+  facet_wrap(~ country, scales = "free")  # Facet by country
+
+
+# Save the plot to a file
+ggsave(filename = "plots/exposure_ind.png", plot = p, width = 14, height = 8, dpi = 300)
+
+
 
 ### Exposure graph with Teu1
 iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
 
-g1 <- g1 %>%
+g1 <- g1 %>% # go get this data from the financial script
   left_join(iso, by = c("country"="eu"))
 
 Teu2 <- Teu1 %>%
@@ -203,12 +236,13 @@ Teu2 <- Teu1 %>%
   select(country, exposure)
 
 
-ggplot(Teu2, aes(x = country, y = exposure)) +
+p <- ggplot(Teu2, aes(x = country, y = exposure)) +
   geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +
   theme_bw() +
   theme(plot.title = element_blank()) +
-  labs(x = "Countries", y = "(%) financial liabilities")
+  labs(x = "Countries", y = "(%) financial assets")
 
+ggsave(filename = "plots/exposure_tot.png", plot = p, width = 12, height = 8, dpi = 300)
 
 
 
