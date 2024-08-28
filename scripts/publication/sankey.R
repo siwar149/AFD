@@ -84,11 +84,24 @@ eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
          "LUX", "POL", "PRT", "SVK")
 
 # Get the index of industrial sectors in EU12
+i <- label_IO[label_IO$iso %in% eu1,]
 
-eu_C <- which(label_IO[label_IO$iso %in% eu1,]$NACE == "C")
+eu_C <- which(i$NACE == "C")
+eu_M <- which(i$NACE == "M")
+eu_L <- which(i$NACE == "L")
+eu_G <- which(i$NACE == "G")
+eu_H <- which(i$NACE == "H")
+eu_D <- which(i$NACE == "D")
+eu_X <- which(i$NACE != "C" | i$NACE != "M" | i$NACE != "L" | i$NACE != "G" | i$NACE != "H" | i$NACE != "D")
 
 # Getting the nSTAR requirements of the industry sector of EU12
-eu_fp <- as.data.table(rowSums(Teu[,..eu_C]))
+eu_fpC <- as.data.table(rowSums(Teu[,..eu_C]))
+eu_fpM <- as.data.table(rowSums(Teu[,..eu_M]))
+eu_fpL <- as.data.table(rowSums(Teu[,..eu_L]))
+eu_fpG <- as.data.table(rowSums(Teu[,..eu_G]))
+eu_fpH <- as.data.table(rowSums(Teu[,..eu_H]))
+eu_fpD <- as.data.table(rowSums(Teu[,..eu_D]))
+eu_fpX <- as.data.table(rowSums(Teu[,..eu_X]))
 
 # Defining the shock source countries
 latam <- c("HND", "COL", "BRA", "GTM", "PER", "ECU")
@@ -97,20 +110,73 @@ latam_A <- which(label_IO$iso %in% latam & label_IO$NACE == "A")
 latam_X <- which(label_IO$iso %in% latam & label_IO$NACE != "A")
 
 # Defining all sectors in EU12
-eu_all <- which(label_IO$iso %in% eu1)
+eu_A <- which(label_IO$iso %in% eu1 & label_IO$NACE == "A")
+eu_X <- which(label_IO$iso %in% eu1 & label_IO$NACE != "A")
 
 # Defning RoW
-row <- which(!label_IO$iso %in% eu1 & !label_IO$iso %in% latam)
+row_A <- which((!label_IO$iso %in% eu1 & !label_IO$iso %in% latam) & label_IO$NACE == "A")
+row_X <- which((!label_IO$iso %in% eu1 & !label_IO$iso %in% latam) & label_IO$NACE != "A")
 
-total <- sum(eu_fp[latam_A,]) + sum(eu_fp[latam_X,]) + sum(eu_fp[eu_all,]) +
-  sum(eu_fp[row,])
+total <- sum(eu_fp[latam_A,]) + sum(eu_fp[latam_X,]) + sum(eu_fp[eu_A,]) +
+  sum(eu_fp[eu_X,]) + sum(eu_fp[row_A,]) + sum(eu_fp[row_X,])
 
-rowSums(bach[, 2:4])[3]
+rowSums(bach[, 2:4])[2]
 
-sum(eu_fp[latam_A,]) / total * 19.67636
-sum(eu_fp[latam_X,]) / total * 19.67636
-sum(eu_fp[eu_all,]) / total * 19.67636
-sum(eu_fp[row,]) / total * 19.67636
+# C
+sum(eu_fpC[latam_A,]) / total * 19.67636
+sum(eu_fpC[latam_X,]) / total * 19.67636
+sum(eu_fpC[eu_A,]) / total * 19.67636
+sum(eu_fpC[eu_X,]) / total * 19.67636
+sum(eu_fpC[row_A,]) / total * 19.67636
+sum(eu_fpC[row_X,]) / total * 19.67636
+
+# M
+sum(eu_fpM[latam_A,]) / total * rowSums(bach[, 2:4])[3]
+sum(eu_fpM[latam_X,]) / total * rowSums(bach[, 2:4])[3]
+sum(eu_fpM[eu_A,]) / total * rowSums(bach[, 2:4])[3]
+sum(eu_fpM[eu_X,]) / total * rowSums(bach[, 2:4])[3]
+sum(eu_fpM[row_A,]) / total * rowSums(bach[, 2:4])[3]
+sum(eu_fpM[row_X,]) / total * rowSums(bach[, 2:4])[3]
+
+# L
+sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[2]
+sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[2]
+sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[2]
+sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[2]
+sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[2]
+sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[2]
+
+# G
+sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[4]
+sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[4]
+sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[4]
+sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[4]
+sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[4]
+sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[4]
+
+# H
+sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[5]
+sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[5]
+sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[5]
+sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[5]
+sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[5]
+sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[5]
+
+# D
+sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[6]
+sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[6]
+sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[6]
+sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[6]
+sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[6]
+sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[6]
+
+# X
+sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[7]
+sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[7]
+sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[7]
+sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[7]
+sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[7]
+sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[7]
 
 
 bach$t <- rowSums(bach[, -1])
@@ -128,12 +194,14 @@ nodes = data.frame("name" =
                        "D", # Node 6
                        "G", # Node 7
                        "H", # Node 8
-                       "X",
-                       "LAC6 A",
-                       "LAC6 X",
-                       "EU12 all",
-                       "RoW",
-                       "Inputs")) 
+                       "X", # Node 9
+                       "LAC6 A", # Node 10
+                       "LAC6 X", # Node 11
+                       "EU12 A", # Node 12
+                       "EU12 X", # Node 13
+                       "RoW A", # Node 14
+                       "RoW X")) # Node 15
+                    
 
 
 links = as.data.frame(matrix(c(
@@ -160,14 +228,34 @@ links = as.data.frame(matrix(c(
   2, 9, 9.8612232,
   4, 10, 3.923613,
   4, 11, 1.146471,
-  4, 12, 5.429341,
-  4, 13, 9.176935,
-  3, 14, 25.29648,
-  5, 14, 10.10756,
-  6, 14, 9.438742,
-  7, 14, 8.943231,
-  8, 14, 7.299611,
-  9, 14, 19.23801),
+  4, 12, 2.113647,
+  4, 13, 3.315694,
+  4, 14, 4.818904,
+  4, 15, 4.358032,
+  3, 10, 0.008733438,
+  3, 11, 1.473935,
+  3, 12, 2.717365,
+  3, 13, 4.262749,
+  3, 14, 6.195319,
+  3, 15, 5.602809,
+  5, 10, ,
+  5, 11, ,
+  5, 12, ,
+  5, 13, ,
+  5, 14, ,
+  5, 15, ,
+  6, 10, ,
+  6, 11, ,
+  6, 12, ,
+  6, 13, ,
+  6, 14, ,
+  6, 15, ,
+  7, 10, ,
+  7, 11, ,
+  7, 12, ,
+  7, 13, ,
+  7, 14, ,
+  7, 15, ),
   byrow = TRUE, ncol = 3))
 names(links) = c("source", "target", "value")
 
