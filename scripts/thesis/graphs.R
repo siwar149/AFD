@@ -4,8 +4,8 @@
 #library("viridis")           # Load
 #install.packages("ggsci")
 #library("ggsci")
-#install.packages("mapproj")
-#library("mapproj")
+install.packages("mapproj")
+library("mapproj")
 library(RColorBrewer)
 
 
@@ -291,7 +291,7 @@ map_ext <- map[which(!map$iso %in% eu),]
 map_eu <- map[which(map$iso %in% eu),]
 
 
-map_ext %>%
+p <- map_ext %>%
   ggplot(aes(map_id = region, fill = score)) +
   geom_map(map = world_map) +
   geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
@@ -304,11 +304,15 @@ map_ext %>%
         axis.title.y = element_blank(),  # Remove y-axis label
         axis.text.x = element_blank(),   # Remove x-axis values
         axis.text.y = element_blank(),   # Remove y-axis values
+        axis.ticks = element_blank(),    # Remove tick marks from axes
         panel.grid = element_blank(),    # Remove coordinate lines
         plot.title = element_text(hjust = 0.5))  # Center plot title
 
 
-map_eu %>%
+ggsave(filename = "plots/Europes_footprint.png", plot = p, width = 12, height = 8, dpi = 300)
+
+
+p <- map_eu %>%
   ggplot(aes(map_id = region, fill = score)) +
   geom_map(map = world_map1) +
   geom_polygon(data = world_map1, aes(x = long, y = lat, group = group),
@@ -321,10 +325,14 @@ map_eu %>%
         axis.title.y = element_blank(),   # Remove y-axis label
         axis.text.x = element_blank(),    # Remove x-axis values
         axis.text.y = element_blank(),    # Remove y-axis values
+        axis.ticks = element_blank(),    # Remove tick marks from axes
         panel.grid = element_blank(),     # Remove coordinate lines
         plot.title = element_text(hjust = 0.5)) +  # Center plot title
   xlim(xmin = -15, xmax = 40) +  # Set longitude limits
   ylim(ymin = 30, ymax = 70)   # Set latitude limits
+
+
+ggsave(filename = "plots/Europes_destruction.png", plot = p, width = 12, height = 8, dpi = 300)
 
 
 
