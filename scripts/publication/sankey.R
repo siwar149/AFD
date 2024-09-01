@@ -117,66 +117,70 @@ eu_X <- which(label_IO$iso %in% eu1 & label_IO$NACE != "A")
 row_A <- which((!label_IO$iso %in% eu1 & !label_IO$iso %in% latam) & label_IO$NACE == "A")
 row_X <- which((!label_IO$iso %in% eu1 & !label_IO$iso %in% latam) & label_IO$NACE != "A")
 
-total <- sum(eu_fp[latam_A,]) + sum(eu_fp[latam_X,]) + sum(eu_fp[eu_A,]) +
-  sum(eu_fp[eu_X,]) + sum(eu_fp[row_A,]) + sum(eu_fp[row_X,])
 
-rowSums(bach[, 2:4])[2]
+total_A <- sum(eu_fpC[latam_A,]) + sum(eu_fpC[eu_A,]) + sum(eu_fpC[row_A,])
+total_X <- sum(eu_fpC[latam_X,]) + sum(eu_fpC[eu_X,]) + sum(eu_fpC[row_X,])
+
+total <- sum(eu_fpC) + sum(eu_fpM) + sum(eu_fpL) + sum(eu_fpG) + sum(eu_fpH) +
+  sum(eu_fpD) + sum(eu_fpX)
+
+sum(rowSums(bach[, 2:4]))
 
 # C
-sum(eu_fpC[latam_A,]) / total * 19.67636
-sum(eu_fpC[latam_X,]) / total * 19.67636
-sum(eu_fpC[eu_A,]) / total * 19.67636
-sum(eu_fpC[eu_X,]) / total * 19.67636
-sum(eu_fpC[row_A,]) / total * 19.67636
-sum(eu_fpC[row_X,]) / total * 19.67636
+sum(eu_fpC[latam_A,]) / total * 100
+sum(eu_fpC[latam_X,]) / total * 100
+sum(eu_fpC[eu_A,]) / total * 100
+sum(eu_fpC[eu_X,]) / total * 100
+sum(eu_fpC[row_A,]) / total * 100
+sum(eu_fpC[row_X,]) / total * 100
 
 # M
-sum(eu_fpM[latam_A,]) / total * rowSums(bach[, 2:4])[3]
-sum(eu_fpM[latam_X,]) / total * rowSums(bach[, 2:4])[3]
-sum(eu_fpM[eu_A,]) / total * rowSums(bach[, 2:4])[3]
-sum(eu_fpM[eu_X,]) / total * rowSums(bach[, 2:4])[3]
-sum(eu_fpM[row_A,]) / total * rowSums(bach[, 2:4])[3]
-sum(eu_fpM[row_X,]) / total * rowSums(bach[, 2:4])[3]
+sum(eu_fpM[latam_A,]) / total * 100
+sum(eu_fpM[latam_X,]) / total * 100
+sum(eu_fpM[eu_A,]) / total * 100
+sum(eu_fpM[eu_X,]) / total * 100
+sum(eu_fpM[row_A,]) / total * 100
+sum(eu_fpM[row_X,]) / total * 100
 
 # L
-sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[2]
-sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[2]
-sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[2]
-sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[2]
-sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[2]
-sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[2]
+sum(eu_fpL[latam_A,]) / total * 100
+sum(eu_fpL[latam_X,]) / total * 100
+sum(eu_fpL[eu_A,]) / total * 100
+sum(eu_fpL[eu_X,]) / total * 100
+sum(eu_fpL[row_A,]) / total * 100
+sum(eu_fpL[row_X,]) / total * 100
 
 # G
-sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[4]
-sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[4]
-sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[4]
-sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[4]
-sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[4]
-sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[4]
+sum(eu_fpG[latam_A,]) / total * 100
+sum(eu_fpG[latam_X,]) / total * 100
+sum(eu_fpG[eu_A,]) / total * 100
+sum(eu_fpG[eu_X,]) / total * 100
+sum(eu_fpG[row_A,]) / total * 100
+sum(eu_fpG[row_X,]) / total * 100
 
 # H
-sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[5]
-sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[5]
-sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[5]
-sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[5]
-sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[5]
-sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[5]
+sum(eu_fpH[latam_A,]) / total * 100
+sum(eu_fpH[latam_X,]) / total * 100
+sum(eu_fpH[eu_A,]) / total * 100
+sum(eu_fpH[eu_X,]) / total * 100
+sum(eu_fpH[row_A,]) / total * 100
+sum(eu_fpH[row_X,]) / total * 100
 
 # D
-sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[6]
-sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[6]
-sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[6]
-sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[6]
-sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[6]
-sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[6]
+sum(eu_fpD[latam_A,]) / total * 100
+sum(eu_fpD[latam_X,]) / total * 100
+sum(eu_fpD[eu_A,]) / total * 100
+sum(eu_fpD[eu_X,]) / total * 100
+sum(eu_fpD[row_A,]) / total * 100
+sum(eu_fpD[row_X,]) / total * 100
 
 # X
-sum(eu_fp[latam_A,]) / total * rowSums(bach[, 2:4])[7]
-sum(eu_fp[latam_X,]) / total * rowSums(bach[, 2:4])[7]
-sum(eu_fp[eu_A,]) / total * rowSums(bach[, 2:4])[7]
-sum(eu_fp[eu_X,]) / total * rowSums(bach[, 2:4])[7]
-sum(eu_fp[row_A,]) / total * rowSums(bach[, 2:4])[7]
-sum(eu_fp[row_X,]) / total * rowSums(bach[, 2:4])[7]
+sum(eu_fpX[latam_A,]) / total * 100
+sum(eu_fpX[latam_X,]) / total * 100
+sum(eu_fpX[eu_A,]) / total * 100
+sum(eu_fpX[eu_X,]) / total * 100
+sum(eu_fpX[row_A,]) / total * 100
+sum(eu_fpX[row_X,]) / total * 100
 
 
 bach$t <- rowSums(bach[, -1])
@@ -226,44 +230,72 @@ links = as.data.frame(matrix(c(
   2, 7, 4.5660117,
   2, 8, 3.6118211,
   2, 9, 9.8612232,
-  4, 10, 3.923613,
-  4, 11, 1.146471,
-  4, 12, 2.113647,
-  4, 13, 3.315694,
-  4, 14, 4.818904,
-  4, 15, 4.358032,
-  3, 10, 0.008733438,
-  3, 11, 1.473935,
-  3, 12, 2.717365,
-  3, 13, 4.262749,
-  3, 14, 6.195319,
-  3, 15, 5.602809,
-  5, 10, ,
-  5, 11, ,
-  5, 12, ,
-  5, 13, ,
-  5, 14, ,
-  5, 15, ,
-  6, 10, ,
-  6, 11, ,
-  6, 12, ,
-  6, 13, ,
-  6, 14, ,
-  6, 15, ,
-  7, 10, ,
-  7, 11, ,
-  7, 12, ,
-  7, 13, ,
-  7, 14, ,
-  7, 15, ),
+  4, 10, 5.704144,
+  4, 11, 1.666738,
+  4, 12, 3.072818,
+  4, 13, 4.820351,
+  4, 14, 7.005716,
+  4, 15, 6.335701,
+  3, 10, 0.009875841,
+  3, 11, 0.01138527,
+  3, 12, 0.005645337,
+  3, 13, 0.06073412,
+  3, 14, 0.02874348,
+  3, 15, 0.06173004,
+  5, 10, 0.03750007,
+  5, 11, 0.03316329,
+  5, 12, 0.01748482,
+  5, 13, 0.2313803,
+  5, 14, 0.1007694,
+  5, 15, 0.1654907,
+  6, 10, 0.0198984,
+  6, 11, 0.1167234,
+  6, 12, 0.01216057,
+  6, 13, 2.813662,
+  6, 14, 0.06920122,
+  6, 15, 0.4569857,
+  7, 10, 0.0737928,
+  7, 11, 0.08803161,
+  7, 12, 0.05560915,
+  7, 13, 0.5349017,
+  7, 14, 0.2176024,
+  7, 15, 0.4790053,
+  8, 10, 0.04639282,
+  8, 11, 0.06412195,
+  8, 12, 0.02059896,
+  8, 13, 0.8736235,
+  8, 14, 0.1212371,
+  8, 15, 0.4643975,
+  9, 10, 0,
+  9, 11, 0,
+  9, 12, 0,
+  9, 13, 0,
+  9, 14, 0,
+  9, 15, 0),
   byrow = TRUE, ncol = 3))
 names(links) = c("source", "target", "value")
 
 
-sankeyNetwork(Links = links, Nodes = nodes,
-              Source = "source", Target = "target",
-              Value = "value", NodeID = "name",
-              fontSize= 12, nodeWidth = 30)
+# Keep the dark color scale for nodes
+dark_color_scale <- 'd3.scaleOrdinal()
+  .domain(["Other", "Loans", "Bonds", "X", "C", "D", "M", "H", "G", "L", 
+           "LAC6 A", "LAC6 X", "EU12 A", "EU12 X", "RoW A", "RoW X"])
+  .range(["#2E8B57", "#1C1C1C", "#483D8B", "#800000", "#2F4F4F", "#8B4513", 
+          "#5F9EA0", "#4B0082", "#4B0082", "#8B0000", "#556B2F", "#2F4F4F", 
+          "#1C1C1C", "#2E8B57", "#5F9EA0", "#8B4513"])'
+
+# Highlighting links connected to node "C" (node 4)
+links$LinkGroup <- ifelse(links$source == 4 | links$target == 4, "highlight", "normal")
+
+
+link_color_scale <- 'd3.scaleOrdinal()
+  .domain(["highlight", "normal"])
+  .range(["#FFA500", "#A9A9A9"])'
+
+sankeyNetwork(Links = links, Nodes = nodes, Source = "source", Target = "target", Value = "value",
+              NodeID = "name", LinkGroup = "LinkGroup", colourScale = dark_color_scale, 
+              nodeWidth = 30, nodePadding = 10, fontSize = 14, 
+              sinksRight = FALSE)
 
 
 #### Second Sankey
@@ -278,7 +310,7 @@ e <- label_IO %>%
   mutate(score= if_else(is.na(score), 0.0001, score))
 
 
-lac6A <- cbind(label_IO[latam_A,], eu_fp[latam_A], e$score[latam_A])
+lac6A <- cbind(label_IO[latam_A,], eu_fpC[latam_A], e$score[latam_A])
 colnames(lac6A)[c(5,6)] <- c("com", "prod")
 
 
