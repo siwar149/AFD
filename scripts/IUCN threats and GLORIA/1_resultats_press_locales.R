@@ -325,6 +325,34 @@ rm(STAR,biotope)
 # Pour les pressions locales on répartit la responsabilité entre tous les secteurs qui possaident 
 # l'espèce menacée par la pression locale en tenant compte de l'aire de répartition de l'espèce dans le pays donné 
 
+# loading shit
+
+biotope_source <- biotope_source %>% rename_all(~ gsub("[^0-9.]", "", .)) %>% rename(pressure = !!names(.)[1]) %>% mutate_at(vars(-1), as.numeric)
+ 
+threats_sectors <- read_excel("data/threats_to_sectors.xlsx", sheet = "Feuil1")
+gloria_threats <- read_excel("data/gloria_to_threats.xlsx", sheet = "Feuil1")
+
+threats_sectors <- threats_sectors %>%
+  left_join(gloria_threats, by = "b_sec", relationship = "many-to-many")
+
+threats_sectors <- threats_sectors %>%
+  filter(!is.na(b_sec)) %>%
+  filter(b_sec != "-")
+
+gloria_threats$b_sec <- "Z"
+
+threats_sectors <- threats_sectors %>%
+  left_join(gloria_threats, by = "b_sec", relationship = "many-to-many")
+
+threats_sectors$gloria_sec.x[603:length(threats_sectors$gloria_sec.x)] <- threats_sectors$gloria_sec.y[603:length(threats_sectors$gloria_sec.x)]
+
+threats_sectors <- threats_sectors %>%
+  rename(sector = gloria_sec.x) %>%
+  select(-b_sec, -gloria_sec.y)
+
+
+
+
 ### 1-/ Créer un vecteur de pressions globales
 
 press <- label_Q %>% tibble::rownames_to_column("Lfd_Nr") %>% filter(Lfd_Nr %in% pressions_analysables) %>%
