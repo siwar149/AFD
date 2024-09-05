@@ -11,6 +11,11 @@ score <- s3read_using(FUN = readRDS,
                       object = paste(set_wd3,"/score_pays.rds",sep=""),
                       bucket = bucket2, opts = list("region" = ""))
 
+score1 <- s3read_using(FUN = data.table::fread,
+                      object = paste(set_wd3,"/score_pays-v2.rds",sep=""),
+                      bucket = bucket2, opts = list("region" = ""))
+
+
 x <- s3read_using(FUN = data.table::fread,
                   object = paste(set_wd1,"/x_2019.rds",sep=""),
                   bucket = bucket1, opts = list("region" = ""))
@@ -25,6 +30,10 @@ colnames(label_IO) <- c("iso", "country", "sector")
 
 e <- label_IO %>%
   left_join(score, by = c("iso", "sector")) %>%
+  mutate(score= if_else(is.na(score), 0.0001, score))
+
+e1 <- label_IO %>%
+  left_join(score1, by = c("iso", "sector")) %>%
   mutate(score= if_else(is.na(score), 0.0001, score))
 
 e <- e$score / x$x

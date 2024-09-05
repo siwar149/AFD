@@ -30,14 +30,14 @@ press_globales <- s3read_using(FUN = readRDS,
 
 #result <- readRDS("data/rds/result.rds")
 
-result <- s3read_using(FUN = readRDS,
-                       object = paste(set_wd,"/result.rds",sep=""),
+result <- s3read_using(FUN = data.table::fread,
+                       object = paste(set_wd,"/result-v2.rds",sep=""),
                        bucket = bucket, opts = list("region" = ""))
 
 #r1 <- readRDS("data/rds/r1.rds")
 
-r1 <- s3read_using(FUN = readRDS,
-                   object = paste(set_wd,"/r1.rds",sep=""),
+r1 <- s3read_using(FUN = data.table::fread,
+                   object = paste(set_wd,"/r1-v2.rds",sep=""),
                    bucket = bucket, opts = list("region" = ""))
 
 ###############################################################################
@@ -49,15 +49,24 @@ r1 <- s3read_using(FUN = readRDS,
 
 ### 1-/ Calculer la part de pressions globales généré par les secteurs 
 
-Q_globales <- Q_abs %>% group_by(Lfd_Nr) %>% mutate(part_press_g=pressure/sum(pressure)) %>% select(-pressure) %>% 
+Q_globales <- Q_abs %>%
+  group_by(Lfd_Nr) %>%
+  mutate(part_press_g=pressure/sum(pressure)) %>%
+  select(-pressure) %>% 
   filter(Lfd_Nr %in% press_globales)
 
 ### 2-/ Couplage pressions globales et score STARij 
 
-redlist_press_globales <- redlist_press %>% filter(Lfd_Nr %in% result$Lfd_Nr)
+redlist_press_globales <- redlist_press %>%
+  filter(Lfd_Nr %in% result$Lfd_Nr)
 
-result_g <- r1 %>% ungroup() %>% select(taxonid,Lfd_Nr,STARij) %>% distinct() %>% filter(Lfd_Nr %in% press_globales) %>%
-  left_join(Q_globales, by="Lfd_Nr") %>% mutate(score=STARij*part_press_g)
+result_g <- r1 %>%
+  ungroup() %>%
+  select(taxonid,Lfd_Nr,STARij) %>%
+  distinct() %>%
+  filter(Lfd_Nr %in% press_globales) %>%
+  left_join(Q_globales, by="Lfd_Nr") %>%
+  mutate(score=STARij*part_press_g)
 
 rm(Q_abs,Q_globales,r1,redlist_press,redlist_press_globales,result,press_globales)
 
@@ -71,6 +80,10 @@ resultats_pressions_globales_press <- resultats_dt[, .(score = sum(score)), by =
 
 rm(resultats_dt)
 
-# saveRDS(resultats_pressions_globales,"data/rds/resultat_press_globales.rds")
+s3write_using(x = as.data.table(resultats_pressions_globales), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/resultat_press_globales-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
+
+# saveRDS(resultats_pressiTRUE# saveRDS(resultats_pressions_globales,"data/rds/resultat_press_globales.rds")
 
 # saveRDS(resultats_pressions_globales_press,"data/rds/resultat_press_globales_press.rds")

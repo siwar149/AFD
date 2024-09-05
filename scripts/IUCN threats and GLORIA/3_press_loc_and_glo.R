@@ -2,6 +2,9 @@ rm(list=ls())
 
 library(dplyr)
 
+set_wd <- "data/bio/rds"
+bucket <- "siwar"
+
 ########################################################################
 ##### IX - Combiner l'analyse des pressions globales et locales ########
 ########################################################################
@@ -9,12 +12,12 @@ library(dplyr)
 #resultats_pressions_locales <- readRDS("data/rds/resultats_pressions_locales.rds")
 #resultats_pressions_globales <- readRDS("data/rds/resultat_press_globales.rds")
 
-resultats_pressions_locales <- s3read_using(FUN = readRDS,
-             object = paste(set_wd,"/resultats_pressions_locales.rds",sep=""),
+resultats_pressions_locales <- s3read_using(FUN = data.table::fread,
+             object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
              bucket = bucket, opts = list("region" = ""))
 
-resultats_pressions_globales <- s3read_using(FUN = readRDS,
-             object = paste(set_wd,"/resultat_press_globales.rds",sep=""),
+resultats_pressions_globales <- s3read_using(FUN = data.table::fread,
+             object = paste(set_wd,"/resultat_press_globales-v2.rds",sep=""),
              bucket = bucket, opts = list("region" = ""))
 
 ### 1-/  Résultats à la maille espèces/ secteur/ pays
@@ -55,9 +58,17 @@ saveRDS(merged_data1, "data/rds/redlist_score_per_pressure.rds")
    #################
 
 # saveRDS(merged_data, "data/rds/redlist_score_per_species.rds")
-   
+
+s3write_using(x = as.data.table(merged_data), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/redlist_score_per_species-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
+      
    ### 2-/  Résultats à la maille secteur/ pays
 
 score_pays <- merged_data %>% group_by(iso,sector) %>% summarise(score=sum(score_sum))  
   
 # saveRDS(score_pays,"data/rds/score_pays.rds")
+
+s3write_using(x = as.data.table(score_pays), FUN = data.table::fwrite, na = "", 
+               object = paste(set_wd,"/score_pays-v2.rds",sep=""),
+               bucket = bucket, opts = list("region" = ""))
