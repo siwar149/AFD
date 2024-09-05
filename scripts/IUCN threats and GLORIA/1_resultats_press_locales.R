@@ -327,8 +327,6 @@ rm(STAR,biotope)
 
 # loading shit
 
-biotope_source <- biotope_source %>% rename_all(~ gsub("[^0-9.]", "", .)) %>% rename(pressure = !!names(.)[1]) %>% mutate_at(vars(-1), as.numeric)
- 
 threats_sectors <- read_excel("data/threats_to_sectors.xlsx", sheet = "Feuil1")
 gloria_threats <- read_excel("data/gloria_to_threats.xlsx", sheet = "Feuil1")
 
@@ -344,16 +342,16 @@ gloria_threats$b_sec <- "Z"
 threats_sectors <- threats_sectors %>%
   left_join(gloria_threats, by = "b_sec", relationship = "many-to-many")
 
-threats_sectors$gloria_sec.x[603:length(threats_sectors$gloria_sec.x)] <-
-  threats_sectors$gloria_sec.y[603:length(threats_sectors$gloria_sec.x)]
+threats_sectors$gloria_sec.x[614:length(threats_sectors$gloria_sec.x)] <-
+  threats_sectors$gloria_sec.y[614:length(threats_sectors$gloria_sec.x)]
 
 threats_sectors <- threats_sectors %>%
   rename(sector = gloria_sec.x) %>%
   select(-b_sec, -gloria_sec.y)
 
-s3write_using(x = as.data.table(threats_sectors), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/threats-sectors.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
+#s3write_using(x = as.data.table(threats_sectors), FUN = data.table::fwrite, na = "", 
+#              object = paste(set_wd,"/threats-sectors.rds",sep=""),
+#              bucket = bucket, opts = list("region" = ""))
 
 
 ### 1-/ Créer un vecteur de pressions globales
@@ -382,8 +380,20 @@ repartition <- subset(repartition, taxonid %in% redlist_press$taxonid) # on ne g
 
 press_locales <- setdiff(pressions_analysables, press_globales) # créer un vecteur de pressions locales
 
-result <- redlist_press %>% left_join(repartition)
-result <- result %>% left_join(Q_abs) %>% drop_na(pressure)
+# Tentativa de solución
+
+threats_sectors <- threats_sectors  %>%
+  mutate(threat = gsub("[^0-9.]", "", threat))
+
+result <- redlist_press %>%
+  left_join(threats_sectors, by = c("result.code"="threat"), relationship = "many-to-many")
+
+result <- result %>%
+  left_join(repartition, by = c("taxonid", "sector"), relationship = "many-to-many")
+
+result <- result %>%
+  left_join(Q_abs) %>%
+  drop_na(pressure)
 
 rm(label_IO,AR6,label_Q,species)
 
