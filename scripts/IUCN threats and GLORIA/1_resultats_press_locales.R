@@ -441,8 +441,16 @@ saveRDS(resultats_pressions_locales_press,"data/rds/resultats_pressions_locales_
 # saveRDS(resultats_pressions_locales,"data/rds/resultats_pressions_locales.rds")
 
 #s3write_using(x = as.data.table(resultats_pressions_locales), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
+#              object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
+#              bucket = bucket, opts = list("region" = ""))
+
+#s3write_using(x = as.data.table(result), FUN = data.table::fwrite, na = "", 
+#              object = paste(set_wd,"/result-v2.rds",sep=""),
+#              bucket = bucket, opts = list("region" = ""))
+
+#s3write_using(x = as.data.table(r1_w_ex), FUN = data.table::fwrite, na = "", 
+#              object = paste(set_wd,"/r1-v2.rds",sep=""),
+#              bucket = bucket, opts = list("region" = ""))
 
 # saveRDS(Q_abs,"data/rds/Q_abs.rds")
 # saveRDS(redlist_press,"data/rds/redlist_press.rds")
