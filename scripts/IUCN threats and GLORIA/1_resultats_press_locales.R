@@ -325,34 +325,6 @@ rm(STAR,biotope)
 # Pour les pressions locales on répartit la responsabilité entre tous les secteurs qui possaident 
 # l'espèce menacée par la pression locale en tenant compte de l'aire de répartition de l'espèce dans le pays donné 
 
-# loading shit
-
-threats_sectors <- read_excel("data/threats_to_sectors.xlsx", sheet = "Feuil1")
-gloria_threats <- read_excel("data/gloria_to_threats.xlsx", sheet = "Feuil1")
-
-threats_sectors <- threats_sectors %>%
-  left_join(gloria_threats, by = "b_sec", relationship = "many-to-many")
-
-threats_sectors <- threats_sectors %>%
-  filter(!is.na(b_sec)) %>%
-  filter(b_sec != "-")
-
-gloria_threats$b_sec <- "Z"
-
-threats_sectors <- threats_sectors %>%
-  left_join(gloria_threats, by = "b_sec", relationship = "many-to-many")
-
-threats_sectors$gloria_sec.x[614:length(threats_sectors$gloria_sec.x)] <-
-  threats_sectors$gloria_sec.y[614:length(threats_sectors$gloria_sec.x)]
-
-threats_sectors <- threats_sectors %>%
-  rename(sector = gloria_sec.x) %>%
-  select(-b_sec, -gloria_sec.y)
-
-#s3write_using(x = as.data.table(threats_sectors), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd,"/threats-sectors.rds",sep=""),
-#              bucket = bucket, opts = list("region" = ""))
-
 
 ### 1-/ Créer un vecteur de pressions globales
 
@@ -380,7 +352,12 @@ repartition <- subset(repartition, taxonid %in% redlist_press$taxonid) # on ne g
 
 press_locales <- setdiff(pressions_analysables, press_globales) # créer un vecteur de pressions locales
 
-# Tentativa de solución
+# Attempt at incorporating the correspondence table between threats and sectors
+
+threats_sectors <- s3read_using(FUN = data.table::fread,
+                          object = paste(set_wd,"/threats-sectors.rds",sep=""),
+                          bucket = bucket, opts = list("region" = ""))
+
 
 threats_sectors <- threats_sectors  %>%
   mutate(threat = gsub("[^0-9.]", "", threat))
@@ -432,25 +409,25 @@ resultats_pressions_locales <- ex_w %>%
   group_by(taxonid,sector,country,iso) %>%
   summarise(score=sum(score), .groups = 'drop')
 
-resultats_pressions_locales_press <- ex_w %>% 
-  group_by(Lfd_Nr,sector,country,iso) %>% summarise(score=sum(score), .groups = 'drop')
+#resultats_pressions_locales_press <- ex_w %>% 
+#  group_by(Lfd_Nr,sector,country,iso) %>% summarise(score=sum(score), .groups = 'drop')
 
-saveRDS(resultats_pressions_locales_press,"data/rds/resultats_pressions_locales_press.rds")
+#saveRDS(resultats_pressions_locales_press,"data/rds/resultats_pressions_locales_press.rds")
 
 
 # saveRDS(resultats_pressions_locales,"data/rds/resultats_pressions_locales.rds")
 
-#s3write_using(x = as.data.table(resultats_pressions_locales), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
-#              bucket = bucket, opts = list("region" = ""))
+s3write_using(x = as.data.table(resultats_pressions_locales), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
 
-#s3write_using(x = as.data.table(result), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd,"/result-v2.rds",sep=""),
-#              bucket = bucket, opts = list("region" = ""))
+s3write_using(x = as.data.table(result), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/result-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
 
-#s3write_using(x = as.data.table(r1_w_ex), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd,"/r1-v2.rds",sep=""),
-#              bucket = bucket, opts = list("region" = ""))
+s3write_using(x = as.data.table(r1_w_ex), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/r1-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
 
 # saveRDS(Q_abs,"data/rds/Q_abs.rds")
 # saveRDS(redlist_press,"data/rds/redlist_press.rds")

@@ -76,7 +76,7 @@ rm(result_g)
 
 resultats_pressions_globales <- resultats_dt[, .(score = sum(score)), by = .(taxonid, sector, country, iso)]
 
-resultats_pressions_globales_press <- resultats_dt[, .(score = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
+#resultats_pressions_globales_press <- resultats_dt[, .(score = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
 
 rm(resultats_dt)
 
