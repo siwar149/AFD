@@ -392,7 +392,16 @@ result <- result %>%
   left_join(repartition, by = c("taxonid", "sector"), relationship = "many-to-many")
 
 result <- result %>%
-  left_join(Q_abs) %>%
+  select(iso, country, sector, range, taxonid, result.code, STARij, Lfd_Nr)
+
+unique(result[is.na(result$sector),]$result.code) # only useless threats remain out of the assessment
+
+# get rid of observations with those threats
+result <- result %>%
+  filter(!is.na(sector)) 
+
+result <- result %>%
+  left_join(Q_abs, by = c("iso", "country", "sector", "Lfd_Nr")) %>%
   drop_na(pressure)
 
 rm(label_IO,AR6,label_Q,species)
@@ -414,7 +423,10 @@ r_p <- r1_w_ex %>%
   group_by(taxonid,Lfd_Nr) %>%
   summarise(per_range=range/sum(range),iso) # range per pressures 
 
-ex_w <- r1_w_ex %>% left_join(r_p) %>% mutate(score=STARij*per_range*part_press) %>% filter(Lfd_Nr %in% press_locales)
+ex_w <- r1_w_ex %>%
+  left_join(r_p) %>%
+  mutate(score=STARij*per_range*part_press) %>%
+  filter(Lfd_Nr %in% press_locales)
  
 resultats_pressions_locales <- ex_w %>% 
   group_by(taxonid,sector,country,iso) %>%
@@ -427,6 +439,10 @@ saveRDS(resultats_pressions_locales_press,"data/rds/resultats_pressions_locales_
 
 
 # saveRDS(resultats_pressions_locales,"data/rds/resultats_pressions_locales.rds")
+
+#s3write_using(x = as.data.table(resultats_pressions_locales), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
 
 # saveRDS(Q_abs,"data/rds/Q_abs.rds")
 # saveRDS(redlist_press,"data/rds/redlist_press.rds")
