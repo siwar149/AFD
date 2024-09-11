@@ -25,11 +25,11 @@ resultats_pressions_globales <- s3read_using(FUN = data.table::fread,
 m <- rbind(resultats_pressions_globales, resultats_pressions_locales)
 merged_data <- data.table::as.data.table(m)
 merged_data <- merged_data[, .(score_sum = sum(score)), by = .(taxonid, sector, country, iso)]
-merged_data1 <- merged_data[, .(score_sum = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
+#merged_data1 <- merged_data[, .(score_sum = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
 
 rm(resultats_pressions_globales,resultats_pressions_locales,m)
 
-saveRDS(merged_data1, "data/rds/redlist_score_per_pressure.rds")
+#saveRDS(merged_data1, "data/rds/redlist_score_per_pressure.rds")
 
    #################
    # test si la somme des scores d'espèces = score STARij tot d'une espèce en fonction des pressions renseignées 
@@ -60,7 +60,7 @@ saveRDS(merged_data1, "data/rds/redlist_score_per_pressure.rds")
 # saveRDS(merged_data, "data/rds/redlist_score_per_species.rds")
 
 s3write_using(x = as.data.table(merged_data), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/redlist_score_per_species-v2.rds",sep=""),
+              object = paste(set_wd,"/redlist_score_per_species-v3.rds",sep=""),
               bucket = bucket, opts = list("region" = ""))
       
    ### 2-/  Résultats à la maille secteur/ pays
@@ -70,5 +70,5 @@ score_pays <- merged_data %>% group_by(iso,sector) %>% summarise(score=sum(score
 # saveRDS(score_pays,"data/rds/score_pays.rds")
 
 s3write_using(x = as.data.table(score_pays), FUN = data.table::fwrite, na = "", 
-               object = paste(set_wd,"/score_pays-v2.rds",sep=""),
+               object = paste(set_wd,"/score_pays-v3.rds",sep=""),
                bucket = bucket, opts = list("region" = ""))

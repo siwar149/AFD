@@ -60,13 +60,13 @@ Q_globales <- Q_abs %>%
 redlist_press_globales <- redlist_press %>%
   filter(Lfd_Nr %in% result$Lfd_Nr)
 
-result_g <- r1 %>%
-  ungroup() %>%
-  select(taxonid,Lfd_Nr,STARij) %>%
-  distinct() %>%
+result_g <- r1 %>% 
+  ungroup() %>% 
+  select(taxonid,Lfd_Nr,STARp) %>% 
+  distinct() %>% 
   filter(Lfd_Nr %in% press_globales) %>%
-  left_join(Q_globales, by="Lfd_Nr") %>%
-  mutate(score=STARij*part_press_g)
+  left_join(Q_globales, by="Lfd_Nr") %>% 
+  mutate(score=STARp*part_press_g)
 
 rm(Q_abs,Q_globales,r1,redlist_press,redlist_press_globales,result,press_globales)
 

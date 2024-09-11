@@ -371,7 +371,7 @@ result <- result %>%
 result <- result %>%
   select(iso, country, sector, range, taxonid, result.code, STARij, Lfd_Nr)
 
-unique(result[is.na(result$sector),]$result.code) # only useless threats remain out of the assessment
+#unique(result[is.na(result$sector),]$result.code) # only useless threats remain out of the assessment
 
 # get rid of observations with those threats
 result <- result %>%
@@ -383,26 +383,34 @@ result <- result %>%
 
 rm(label_IO,AR6,label_Q,species)
 
-r1_w_ex <- result %>%
+# Distribution of STAR scores per pressures
+star_per_pressure <- result %>%
+  select(taxonid,result.code,STARij,Lfd_Nr) %>%
+  distinct() %>% 
   group_by(result.code,taxonid) %>%
   mutate(nbr_press_per_threat=length(unique(Lfd_Nr))) %>%
   mutate(STARij=STARij/nbr_press_per_threat) %>%
-  ungroup() %>%
-  group_by(taxonid,Lfd_Nr,iso,country,sector,range,pressure) %>%
-  summarise(STARij=sum(STARij)) %>% 
+  group_by(taxonid, Lfd_Nr) %>% 
+  mutate(STARp=sum(STARij)) %>% 
+  select(-result.code,-nbr_press_per_threat,-STARij) %>%
+  distinct()
+
+r1_w_ex <- result %>%
+  left_join(star_per_pressure) %>%
   group_by(taxonid,Lfd_Nr,iso) %>% 
-  mutate(part_press=pressure/sum(pressure)) 
+  select(-result.code,-STARij) %>%
+  mutate(part_press=pressure/sum(pressure)) # distribution of pressures threatened species inside countries 
 
 r_p <- r1_w_ex %>%
   ungroup() %>%
   select(taxonid,Lfd_Nr,iso,range) %>%
   distinct() %>%
   group_by(taxonid,Lfd_Nr) %>%
-  summarise(per_range=range/sum(range),iso) # range per pressures 
+  summarise(per_range=range/sum(range),iso) # range per pressures
 
 ex_w <- r1_w_ex %>%
   left_join(r_p) %>%
-  mutate(score=STARij*per_range*part_press) %>%
+  mutate(score=STARp*per_range*part_press) %>% 
   filter(Lfd_Nr %in% press_locales)
  
 resultats_pressions_locales <- ex_w %>% 
