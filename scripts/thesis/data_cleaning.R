@@ -6,13 +6,13 @@ set_wd1 <- "Gloria/matrices"
 set_wd2 <- "data/Gloria"
 set_wd3 <- "data/bio/rds"
 
-# Get the nSTAR intensity vector
-score <- s3read_using(FUN = readRDS,
-                      object = paste(set_wd3,"/score_pays.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = ""))
+## Get the nSTAR intensity vector
+#score <- s3read_using(FUN = readRDS,
+#                      object = paste(set_wd3,"/score_pays.rds",sep=""),
+#                      bucket = bucket2, opts = list("region" = ""))
 
-score1 <- s3read_using(FUN = data.table::fread,
-                      object = paste(set_wd3,"/score_pays-v2.rds",sep=""),
+score3 <- s3read_using(FUN = data.table::fread,
+                      object = paste(set_wd3,"/score_pays-v3.rds",sep=""),
                       bucket = bucket2, opts = list("region" = ""))
 
 
@@ -28,18 +28,18 @@ label_IO <- as.data.table(s3read_using(FUN = readRDS,
 
 colnames(label_IO) <- c("iso", "country", "sector")
 
-e <- label_IO %>%
-  left_join(score, by = c("iso", "sector")) %>%
+#e <- label_IO %>%
+#  left_join(score, by = c("iso", "sector")) %>%
+#  mutate(score= if_else(is.na(score), 0.0001, score))
+
+e3 <- label_IO %>%
+  left_join(score3, by = c("iso", "sector")) %>%
   mutate(score= if_else(is.na(score), 0.0001, score))
 
-e1 <- label_IO %>%
-  left_join(score1, by = c("iso", "sector")) %>%
-  mutate(score= if_else(is.na(score), 0.0001, score))
+e3 <- e3$score / x$x
 
-e <- e$score / x$x
-
-s3write_using(x = as.data.table(e), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/e_2019.rds",sep=""),
+s3write_using(x = as.data.table(e3), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/e3_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
@@ -51,9 +51,9 @@ f <- s3read_using(FUN = data.table::fread,
 f <- rowSums(f)
 
 
-s3write_using(x = as.data.table(f), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/f_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+#s3write_using(x = as.data.table(f), FUN = data.table::fwrite, na = "", 
+#              object = paste(set_wd2,"/f_2019.rds",sep=""),
+#              bucket = bucket2, opts = list("region" = ""))
 
 
 L <- s3read_using(FUN = data.table::fread,
@@ -61,15 +61,15 @@ L <- s3read_using(FUN = data.table::fread,
                   bucket = bucket1, opts = list("region" = ""))
 
 # compute vector with multipliers of consumption footprint
-mcf <- t(as.matrix(L)) %*% e
+mcf3 <- t(as.matrix(L)) %*% e3
 
-s3write_using(x = as.data.table(mcf), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/mcf.rds",sep=""),
+s3write_using(x = as.data.table(mcf3), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/mcf3.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
 ### Flow matrix for world map
-T <- diag(e) %*% as.matrix(L) %*% diag(f)
+T <- diag(e3) %*% as.matrix(L) %*% diag(f)
 
 eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
          "LUX", "POL", "PRT", "SVK")
@@ -78,12 +78,12 @@ in_eu1 <- which(label_IO$iso %in% eu1)
 
 
 s3write_using(x = as.data.table(T[,in_eu1]), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/Teu.rds",sep=""),
+              object = paste("data/Gloria/Teu3.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
-
-
+rm(list = ls())
+gc()
 
 # VARIATION IN INVENTORIES IS NEGATIVE FOR ALL COUNTRIES
 ## Get the set of final demands where there are negative values
