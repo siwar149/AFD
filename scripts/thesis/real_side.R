@@ -33,8 +33,8 @@ label_IO <- as.data.table(s3read_using(FUN = readRDS,
 
 colnames(label_IO) <- c("iso", "country", "sector")
 
-mcf <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/mcf.rds",sep=""),
+mcf3 <- s3read_using(FUN = data.table::fread,
+                  object = paste(set_wd2,"/mcf3.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
 
 f <- s3read_using(FUN = data.table::fread,
@@ -43,12 +43,12 @@ f <- s3read_using(FUN = data.table::fread,
 
 
 # Actual nSTAR consumption based footprint
-t <- mcf * f
+t <- mcf3 * f
 
 in_eu1 <- which(label_IO$iso %in% eu1)
 not_eu <- which(!label_IO$iso %in% eu1)
 
-summary(mcf[in_eu1,])
+summary(mcf3[in_eu1,])
 
 
 
@@ -65,7 +65,7 @@ dt <- -0.01 * sum(tis) * (tis / sum(tis)) # the mistake was here
 View(tis / sum(tis))
 
 # Calculate variation in demand
-df <- dt / mcf
+df <- dt / mcf3
 summary(abs(df[in_eu1]) / f[in_eu1])
 
 # Calculate variation in output
@@ -87,7 +87,7 @@ x <- x + 0.0001 # No data on Yemen's output
 summary(abs(dx[in_eu1]) / x[in_eu1])
 
 #s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd2,"/dx.rds",sep=""),
+#              object = paste(set_wd2,"/dx3.rds",sep=""),
 #              bucket = bucket2, opts = list("region" = ""))
 
 f <- as.data.table(f)
@@ -98,11 +98,11 @@ colnames(g)[c(1,3:4)] <- c("dx", "df", "f")
 
 g <- cbind(label_IO, g)
 
-g <- g[in_eu,]
+g <- g[in_eu1,]
 
-s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/g_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+#s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
+#              object = paste(set_wd2,"/g3_2019.rds",sep=""),
+#              bucket = bucket2, opts = list("region" = ""))
 
 
 ### Add a column with the NACE sectors
@@ -129,7 +129,7 @@ g <- g %>%
 
 
 s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g_1_2019.rds",sep=""),
+              object = paste("data/Gloria/g3_1_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
@@ -147,5 +147,5 @@ g <- g[which(g$eu %in% sample), ]
 
 
 s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g1_2_2019.rds",sep=""),
+              object = paste("data/Gloria/g3_2_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
