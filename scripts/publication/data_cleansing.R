@@ -29,13 +29,20 @@ label_IO <- as.data.table(s3read_using(FUN = readRDS,
 
 colnames(label_IO) <- c("iso", "country", "sector")
 
+nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
+
+label_IO <- label_IO %>%
+  left_join(nace, by = c("sector"="Gloria"))
+
+rm(nace)
+
 f <- as.data.table(s3read_using(FUN = data.table::fread,
                                 object = paste(set_wd2,"/f_2019.rds",sep=""),
                                 bucket = bucket2, opts = list("region" = "")))
 
-Z <- as.data.table(s3read_using(FUN = readRDS,
-                                object = paste(set_wd2,"/IO_2019.rds",sep=""),
-                                bucket = bucket2, opts = list("region" = "")))
+Z <- s3read_using(FUN = data.table::fread,
+                        object = paste(set_wd1,"/IO_2019.rds",sep=""),
+                        bucket = bucket1, opts = list("region" = ""))
 
 x <- as.numeric(as.matrix(x))
 
@@ -115,20 +122,40 @@ in_eu <- which(label_IO$iso %in% eu1)
 # import exposure in eu
 expeu <- as.data.table(colSums(Z[latam6A, ..in_eu]))
 
-# export exposure in latam
-explatam <- as.data.table(rowSums(Z[latam6cns, ..in_eu]))
+expeu <- expeu / x[in_eu,] * 100
 
+expeu <- cbind(label_IO[in_eu,], expeu)
 
-exp <- exp / x[in_eu,] * 100
-
-exp <- cbind(label_IO[in_eu,], exp)
-
-exp1 <- exp %>%
+expeu1 <- expeu %>%
   group_by(iso, country, NACE) %>%
   summarise(V1 = sum(V1)) %>%
   arrange(desc(V1))
 
-head(exp1, 28) %>% print(n = 28)
+head(expeu1, 28) %>% print(n = 28)
+
+rm(Z)
+gc()
+
+# export exposure in latam
+explatam <- as.data.table(rowSums(Z[latam6cns, ..in_eu]))
+
+FD <- s3read_using(FUN = data.table::fread,
+                   object = paste(set_wd1,"/FD_2019.rds",sep=""),
+                   bucket = bucket1, opts = list("region" = ""))
+
+label_FD <- s3read_using(FUN = data.table::fread,
+                         object = paste("Gloria/labels/label_FD.rds",sep=""),
+                         bucket = bucket1, opts = list("region" = ""))
+
+fd_eu <- which(label_FD$V1 %in% eu1)
+
+explatam <- explatam + as.data.table(rowSums(FD[latam6cns, ..fd_eu]))
+
+# calculating propensity to import
+A <- as.data.table(s3read_using(FUN = data.table::fread,
+                                object = paste(set_wd1,"/A_2019.rds",sep=""),
+                                bucket = bucket1, opts = list("region" = "")))
+
 
 
 # loss in output
@@ -136,9 +163,23 @@ head(exp1, 28) %>% print(n = 28)
 #### Using the Gosh model to measure the impact of halting exports of 
 # agricultural products to Europe
 
-A <- as.data.table(s3read_using(FUN = data.table::fread,
-                                object = paste(set_wd1,"/A_2019.rds",sep=""),
-                                bucket = bucket1, opts = list("region" = "")))
+A <- s3read_using(FUN = data.table::fread,
+                            object = paste(set_wd1,"/A_2019.rds",sep=""),
+                            bucket = bucket1, opts = list("region" = ""))
+
+Am <- A
+Am[latam6cns, latam6cns] <- 0
+
+i <- A[,1]
+i$V1 <- 1
+
+m <- t(as.matrix(i)) %*% (as.matrix(Am) %*% solve(diag(dim(A)[1]) - as.matrix(A)))
+
+m <- as.data.table(m)
+
+s3write_using(x = as.data.table(m), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/m.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
 
 # countries where the shock comes from
 latam6 <- c("HND", "COL", "BRA", "GTM", "PER", "ECU")
