@@ -11,7 +11,7 @@ library("tidyr")
 
 # intensity of nSTAR
 e <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/e_2019.rds",sep=""),
+                  object = paste(set_wd2,"/e3_2019.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
 
 # Output
@@ -104,8 +104,20 @@ rm("bk", "fr", "fr_eu", "bk_eu", "G")
 
 ####### ESTEEM ########
 # Starting to look at exposure
+latam6 <- c("HND", "COL", "BRA", "GTM", "PER", "ECU")
 
-exp <- as.data.table(colSums(Z[latam6A, ..in_eu]))
+latam6cns <- which(label_IO$iso %in% latam6)
+
+latam6A <- which(label_IO$iso %in% latam6 & label_IO$NACE == "A")
+
+in_eu <- which(label_IO$iso %in% eu1)
+
+# import exposure in eu
+expeu <- as.data.table(colSums(Z[latam6A, ..in_eu]))
+
+# export exposure in latam
+explatam <- as.data.table(rowSums(Z[latam6cns, ..in_eu]))
+
 
 exp <- exp / x[in_eu,] * 100
 
