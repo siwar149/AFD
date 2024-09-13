@@ -89,7 +89,7 @@ ggsave(filename = "plots/1per_cent_shock.png", plot = p, width = 14, height = 8,
 
 ### Financial graphs ###
 fg <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/g1_3_2019.rds",sep=""),
+                  object = paste(set_wd2,"/g3_3_2019.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
 
 fg <- fg %>%
@@ -98,7 +98,7 @@ fg <- fg %>%
 anomalies <- which(fg$vaript < 0 | fg$vaript > 0.05)
 
 bach <- s3read_using(FUN = data.table::fread,
-                   object = paste(set_wd2,"/g1_3_2019.rds",sep=""),
+                   object = paste(set_wd2,"/g3_3_2019.rds",sep=""),
                    bucket = bucket2, opts = list("region" = ""))
 
 bach <- bach %>%
@@ -115,6 +115,12 @@ fg$vaript[anomalies] <- bach$vaript1 # fix negative values
 summary(fg$vaript)
 
 iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
+
+label_IO <- as.data.table(s3read_using(FUN = readRDS,
+                          object = paste(set_wd2,"/label_IO.rds",sep=""),
+                          bucket = bucket2, opts = list("region" = "")))
+
+colnames(label_IO) <- c("iso", "country", "sector")
 
 cnts <- unique(label_IO$country)
 isos <- unique(label_IO$iso)
