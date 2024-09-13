@@ -149,3 +149,6 @@ g <- g[which(g$eu %in% sample), ]
 s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
               object = paste("data/Gloria/g3_2_2019.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
+
+rm(list = ls())
+gc()

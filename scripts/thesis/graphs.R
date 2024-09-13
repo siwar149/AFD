@@ -19,7 +19,7 @@ set_wd3 <- "data/bio/rds"
 
 
 g <- s3read_using(FUN = data.table::fread,
-                        object = paste(set_wd2,"/g1_2_2019.rds",sep=""),
+                        object = paste(set_wd2,"/g3_2_2019.rds",sep=""),
                         bucket = bucket2, opts = list("region" = ""))
 
 
@@ -42,12 +42,13 @@ a <- g1 %>%
   summarise(revarx = sum(revarx)) %>%
   pull(revarx)
 
+n_s <- read_excel("data/NACE.xlsx", sheet = "Feuil1")
 
 g1 <- g1 %>%
   left_join(n_s, by = c("NACE"="nace"))
 
 
-p <- ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
+ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
   geom_bar(stat = "identity", color = "black", alpha = 0.7) +  # Adding transparency with alpha
   labs(x = "EU", y = "(%) Output") +
   scale_fill_uchicago(name = "") +  # Setting the title of the legend
@@ -58,22 +59,29 @@ p <- ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
 
 
 # Use the 'Set3' palette, which includes colors similar to the custom ones
-brewer_palette <- brewer.pal(12, "Set3")
+brewer_palette <- brewer.pal(12, "Paired")
 brewer_palette <- brewer_palette[c(4:12)]
 custom_palette <- c("#7F7F7F", "#66C2A5", "#8DA0CB", "#A6D854", 
                     "#4D4D4D", "#B2E2E2", "#5E4FA2", "#5AAE61", "#E78AC3")
 
 # Example of using a predefined palette close to the custom colors
-ggplot(g1, aes(x = eu, y = revarx, fill = factor(NACE))) +
+p <- ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
   geom_bar(stat = "identity", color = "black", alpha = 0.7) +
-  labs(x = "EU", y = "(%) Output") +
-  scale_fill_manual(values = custom_palette, name = "Sector") +  # Use the 'Set3' palette
+  labs(x = "", y = "(%) Output") +
+  scale_fill_manual(values = brewer_palette, name = "") +  # Use the 'Set3' palette
   theme_bw() +
   theme(
-    legend.position = "bottom",   # Position the legend at the bottom
-    legend.key = element_blank(), # Remove the legend keys (the little squares)
-    legend.title = element_text(size = 10),  # Customize legend title size
-    legend.text = element_text(size = 8)     # Customize legend text size
+    legend.position = "bottom",    # Position the legend at the bottom
+    legend.key = element_blank(),  # Remove the legend keys (the little squares)
+    legend.title = element_text(size = 10),   # Customize legend title size
+    legend.text = element_text(size = 8),     # Customize legend text size
+    axis.text = element_text(size = 12, face = "bold"),  # Make axis text larger and bold
+    axis.title = element_text(size = 14, face = "bold"), # Make axis title larger and bold
+    #axis.line = element_line(color = "black", size = 1), # Make axis lines thicker and darker
+    axis.ticks = element_line(color = "black", size = 1), # Make axis ticks thicker and darker
+    panel.border = element_rect(color = "black", size = 2.3),  # Thicker, darker panel border
+    panel.grid.major = element_line(color = "grey80"),          # Optionally darken grid lines
+    panel.grid.minor = element_blank()                          # Remove minor grid lines if you want cleaner look
   )
 
 ggsave(filename = "plots/1per_cent_shock.png", plot = p, width = 14, height = 8, dpi = 300)
@@ -182,7 +190,6 @@ Teu1 <- Teu1 %>%
   filter(row_number() <= 8) %>%
   distinct()
 
-n_s <- read_excel("data/NACE.xlsx", sheet = "Feuil1")
 
 Teu1 <- Teu1 %>%
   left_join(n_s, by = c("NACE" = "nace"))
