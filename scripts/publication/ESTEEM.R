@@ -87,6 +87,8 @@ fd_eu <- which(label_FD$V1 %in% eu1)
 
 explatam <- explatam + as.data.table(rowSums(FD[latam6cns, ..fd_eu]))
 
+explatam <- explatam / x[latam6cns,]
+
 # calculating propensity to import
 A <- s3read_using(FUN = data.table::fread,
                         object = paste(set_wd1,"/A_2019.rds",sep=""),
@@ -111,7 +113,31 @@ m <- s3read_using(FUN = data.table::fread,
                   bucket = bucket2, opts = list("region" = ""))
 
 summary(m[latam6cns,])
-summary(explatam)
+
+m <- m[latam6cns,]
+
+m <- cbind(label_IO[latam6cns], m)
+
+m <- cbind(m, explatam)
+
+colnames(m)[5:6] <- c("m", "exp")
+
+nx <- m %>%
+  mutate(nx = exp * (1-m)) %>%
+  select(-exp, -m) %>%
+  cbind(x[latam6cns]) %>%
+  mutate(xp = nx * x) %>%
+  group_by(iso, country, NACE) %>%
+  summarise(xp = sum(xp)) %>%
+  group_by(country) %>%
+  summarise(
+    xp_A = sum(xp[NACE == "A"], na.rm = TRUE),       # Sum of 'xp' where NACE is "A"
+    xp_non_A = sum(xp[NACE != "A"], na.rm = TRUE)    # Sum of 'xp' where NACE is not "A"
+  ) %>%
+  mutate(ratio = xp_A / xp_non_A)
+
+
+  
 
 # loss in output
 
