@@ -259,7 +259,7 @@ ggsave(filename = "plots/exposure_tot.png", plot = p, width = 12, height = 8, dp
 
 ### World graph ###
 footprint <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/Teu.rds",sep=""),
+                  object = paste(set_wd2,"/Teu3.rds",sep=""),
                   bucket = bucket2, opts = list("region" = ""))
 
 footprint <- as.data.table(rowSums(footprint))
