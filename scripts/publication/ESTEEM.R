@@ -50,24 +50,33 @@ x <- as.data.table(x)
 
 # import exposure in eu
 expeu <- as.data.table(colSums(Z[latam6A, ..in_eu]))
+all_inputs <- as.data.table(colSums(Z[, ..in_eu]))
 
 expeu <- expeu / x[in_eu,] * 100
+expeu_all <- expeu / all_inputs * 100
 
 expeu <- cbind(label_IO[in_eu,], expeu)
+expeu_all <- cbind(label_IO[in_eu,], expeu_all)
 
 expeu1 <- expeu %>%
   group_by(iso, country, NACE) %>%
   summarise(V1 = sum(V1)) %>%
   arrange(desc(V1))
 
-head(expeu1, 28) %>% print(n = 28)
-
-expeu_nx <- expeu1 %>%
-  group_by(iso, country) %>%
+expeu1_all <- expeu_all %>%
+  group_by(iso, country, NACE) %>%
   summarise(V1 = sum(V1)) %>%
   arrange(desc(V1))
 
-head(expeu_nx, 12) # monetary exposure
+head(expeu1_all, 28) %>% print(n = 28)
+
+expeu_nm <- expeu1_all %>%
+  group_by(iso, country) %>%
+  summarise(V1 = sum(V1)) %>%
+  rename(nm = V1)
+
+
+head(expeu_nm, 12) # monetary exposure
 
 # export exposure in latam
 explatam <- as.data.table(rowSums(Z[latam6cns, ..in_eu]))
@@ -89,10 +98,10 @@ explatam <- explatam + as.data.table(rowSums(FD[latam6cns, ..fd_eu]))
 
 explatam <- explatam / x[latam6cns,]
 
-# calculating propensity to import
-A <- s3read_using(FUN = data.table::fread,
-                        object = paste(set_wd1,"/A_2019.rds",sep=""),
-                        bucket = bucket1, opts = list("region" = ""))
+# calculating direct and indirect embodied imported inputs
+#A <- s3read_using(FUN = data.table::fread,
+#                        object = paste(set_wd1,"/A_2019.rds",sep=""),
+#                        bucket = bucket1, opts = list("region" = ""))
 
 #Am <- A
 #Am[latam6cns, latam6cns] <- 0
@@ -122,34 +131,42 @@ m <- cbind(m, explatam)
 
 colnames(m)[5:6] <- c("m", "exp")
 
-nx <- m %>%
+explatam_nx <- m %>%
   mutate(nx = exp * (1-m)) %>%
   select(-exp, -m) %>%
   cbind(x[latam6cns]) %>%
   mutate(xp = nx * x) %>%
   group_by(iso, country, NACE) %>%
   summarise(xp = sum(xp)) %>%
-  group_by(country) %>%
+  group_by(iso, country) %>%
   summarise(
     xp_A = sum(xp[NACE == "A"], na.rm = TRUE),       # Sum of 'xp' where NACE is "A"
-    xp_non_A = sum(xp[NACE != "A"], na.rm = TRUE)    # Sum of 'xp' where NACE is not "A"
+    xp_non_A = sum(xp)    
   ) %>%
-  mutate(ratio = xp_A / xp_non_A)
+  mutate(nx = xp_A / xp_non_A) %>%
+  select(-xp_A, -xp_non_A)# done
+
 
 
   
 
 # loss in output
 
-#### Using the Gosh model to measure the impact of halting exports of 
+#### Measure the impact of halting exports of 
 # agricultural products to Europe
 
-
+A <- s3read_using(FUN = data.table::fread,
+                        object = paste(set_wd1,"/A_2019.rds",sep=""),
+                        bucket = bucket1, opts = list("region" = ""))
 
 
 # Shocking only the exports to EU countries
 A[latam6A, in_eu] <- 0
 A[in_eu, latam6A] <- 0
+
+# the correct way
+A[latam6A,] <- 0
+A[, latam6A] <- 0
 
 # Shocking final demand
 FD <- s3read_using(FUN = data.table::fread,
@@ -160,9 +177,11 @@ label_FD <- s3read_using(FUN = data.table::fread,
                          object = paste("Gloria/labels/label_FD.rds",sep=""),
                          bucket = bucket1, opts = list("region" = ""))
 
-fd_eu <- which(lavel_FD$V1 %in% eu1)
+fd_eu <- which(label_FD$V1 %in% eu1)
 
 FD[latam6A, fd_eu] <- 0
+#correct way
+FD[latam6A, ] <- 0
 
 f <- as.data.table(rowSums(FD))
 
@@ -190,18 +209,44 @@ x1 <- as.matrix(Lcj) %*% as.matrix(f)
 
 x1 <- as.data.table(x1)
 
-#s3write_using(x = as.data.table(x1), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd2,"/x1_la6.rds",sep=""),
-#              bucket = bucket2, opts = list("region" = ""))
+s3write_using(x = as.data.table(x1), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd2,"/x1_la6-v2.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
 
-#dx <- (x1 - x)/x * 100
+dx <- (x1 - x)/x * 100
 
-#dx <- cbind(label_IO[in_eu,], dx[in_eu])
+dx_eu <- cbind(label_IO[in_eu,], x1[in_eu,], x[in_eu,])
+dx_latam <- cbind(label_IO[latam6cns,], x1[latam6cns,], x[latam6cns,])
+
+dx_eu <- dx_eu %>%
+  rename(x1 = V1) %>%
+  group_by(iso, country) %>%
+  summarise(x1 = sum(x1),
+            x = sum(x)) %>%
+  mutate(dx = (x1 - x)/x * 100) %>%
+  select(-x1, -x)
+
+dx_latam <- dx_latam %>%
+  rename(x1 = V1) %>%
+  group_by(iso, country) %>%
+  summarise(x1 = sum(x1),
+            x = sum(x)) %>%
+  mutate(dx = (x1 - x)/x * 100) %>%
+  select(-x1, -x)
+
 
 
 x1 <- s3read_using(FUN = data.table::fread,
                    object = paste(set_wd2,"/x1_la6.rds",sep=""),
                    bucket = bucket2, opts = list("region" = ""))
+
+expeu_nm <- expeu_nm %>%
+  left_join(dx_eu, by = c("iso", "country"))
+
+
+explatam_nx <- explatam_nx %>%
+  left_join(dx_latam, by = c("iso", "country"))
+
 
 ## Looking at taxes on production, profits and payroll
 #wg <- as.data.table(t(v[1,]))
@@ -232,34 +277,40 @@ var_tax <- var %>%
 #            wg = sum(wg))
 
 
-#imf_tax <- s3read_using(FUN = read.csv,
-#                  header = T,
-#                  object = "data/taxes_imf.csv",
-#                  bucket = bucket2, opts = list("region" = ""))
+imf_tax <- s3read_using(FUN = read.csv,
+                  header = T,
+                  object = "data/taxes_imf.csv",
+                  bucket = bucket2, opts = list("region" = ""))
 
-#eur <- c("Austria", "Belgium", "Germany", "Spain", "France", "Croatia, Rep. of",
-#         "Hungary", "Italy", "Luxembourg", "Poland, Rep. of", "Portugal", "Slovak Rep.")
+eur <- c("Austria", "Belgium", "Germany", "Spain", "France", "Croatia, Rep. of",
+         "Hungary", "Italy", "Luxembourg", "Poland, Rep. of", "Portugal", "Slovak Rep.")
 
-#tx <- which(imf_tax$Country.Name %in% eur &
-#             (imf_tax$Classification.Name == "Taxes on payroll & workforce" |
-#              imf_tax$Classification.Name == "Taxes on income, profits, & capital gains") &
-#              imf_tax$Sector.Name == "General government" &
-#              imf_tax$Unit.Name == "Domestic currency" & imf_tax$Attribute == "Value")
+latam <- c("Honduras", "Colombia", "Brazil", "Guatemala", "Peru", "Ecuador")
 
-#imf_tax <- imf_tax[tx,]
+tx_eur <- which(imf_tax$Country.Name %in% eur &
+             (imf_tax$Classification.Name == "Taxes on payroll & workforce" |
+              imf_tax$Classification.Name == "Taxes on income, profits, & capital gains") &
+              imf_tax$Sector.Name == "General government" &
+              imf_tax$Unit.Name == "Percent of GDP" & imf_tax$Attribute == "Value")
 
-#imf_tax$X2019 <- as.numeric(imf_tax$X2019)
+tx_latam <- which(imf_tax$Country.Name %in% latam &
+              (imf_tax$Classification.Name == "Taxes on payroll & workforce" |
+               imf_tax$Classification.Name == "Taxes on income, profits, & capital gains") &
+               imf_tax$Sector.Name == "General government" &
+               imf_tax$Unit.Name == "Percent of GDP" & imf_tax$Attribute == "Value")
 
-#imf_tax$X2019 <- imf_tax$X2019 * 1.1201
+imf_eur <- imf_tax[tx_eur,]
 
-#imf_tax <- imf_tax %>%
-#  select(Country.Name, Classification.Name, X2019)
+imf_eur$X2019 <- as.numeric(imf_eur$X2019)
 
-#imf_tax <- imf_tax %>%
-#  pivot_wider(id_cols = "Country.Name", names_from = "Classification.Name", values_from = "X2019") %>%
-#  rename(tps = "Taxes on income, profits, & capital gains",
-#         twg = "Taxes on payroll & workforce",
-#         country = Country.Name)
+imf_eur <- imf_eur %>%
+  select(Country.Name, Classification.Name, X2019)
+
+imf_tax <- imf_tax %>%
+  pivot_wider(id_cols = "Country.Name", names_from = "Classification.Name", values_from = "X2019") %>%
+  rename(tps = "Taxes on income, profits, & capital gains",
+         twg = "Taxes on payroll & workforce",
+         country = Country.Name)
 
 #imf_tax[c(3, 9, 11), 1] <- c("Croatia", "Poland", "Slovakia")
 
