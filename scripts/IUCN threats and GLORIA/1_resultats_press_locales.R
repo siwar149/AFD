@@ -5,7 +5,7 @@ library(dplyr)
 library(tidyr)
 library(readxl)
 
-setwd(dir="/home/onyxia/work/R_light/")
+#setwd(dir="/home/onyxia/work/R_light/")
 
 bucket = "siwar"
 set_wd <- "data/bio/rds"
@@ -424,6 +424,12 @@ resultats_pressions_locales <- ex_w %>%
 
 
 # saveRDS(resultats_pressions_locales,"data/rds/resultats_pressions_locales.rds")
+
+
+s3write_using(x = as.data.table(resultats_pressions_locales_press), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/resultats_pressions_locales_press-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
+
 
 s3write_using(x = as.data.table(resultats_pressions_locales), FUN = data.table::fwrite, na = "", 
               object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),

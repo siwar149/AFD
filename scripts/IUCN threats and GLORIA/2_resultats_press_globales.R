@@ -80,6 +80,10 @@ resultats_pressions_globales <- resultats_dt[, .(score = sum(score)), by = .(tax
 
 rm(resultats_dt)
 
+s3write_using(x = as.data.table(resultats_pressions_globales_press), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/resultat_press_globales_press-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
+
 s3write_using(x = as.data.table(resultats_pressions_globales), FUN = data.table::fwrite, na = "", 
               object = paste(set_wd,"/resultat_press_globales-v2.rds",sep=""),
               bucket = bucket, opts = list("region" = ""))

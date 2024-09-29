@@ -13,11 +13,11 @@ bucket <- "siwar"
 #resultats_pressions_globales <- readRDS("data/rds/resultat_press_globales.rds")
 
 resultats_pressions_locales <- s3read_using(FUN = data.table::fread,
-             object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
+             object = paste(set_wd,"/resultats_pressions_locales_press-v2.rds",sep=""),
              bucket = bucket, opts = list("region" = ""))
 
 resultats_pressions_globales <- s3read_using(FUN = data.table::fread,
-             object = paste(set_wd,"/resultat_press_globales-v2.rds",sep=""),
+             object = paste(set_wd,"/resultat_press_globales_press-v2.rds",sep=""),
              bucket = bucket, opts = list("region" = ""))
 
 ### 1-/  Résultats à la maille espèces/ secteur/ pays
@@ -25,11 +25,23 @@ resultats_pressions_globales <- s3read_using(FUN = data.table::fread,
 m <- rbind(resultats_pressions_globales, resultats_pressions_locales)
 merged_data <- data.table::as.data.table(m)
 merged_data <- merged_data[, .(score_sum = sum(score)), by = .(taxonid, sector, country, iso)]
-#merged_data1 <- merged_data[, .(score_sum = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
+merged_data1 <- merged_data[, .(score_sum = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
 
 rm(resultats_pressions_globales,resultats_pressions_locales,m)
 
 #saveRDS(merged_data1, "data/rds/redlist_score_per_pressure.rds")
+
+s3write_using(x = as.data.table(merged_data1), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/redlist_score_per_pressure-v2.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
+
+df_wide <- merged_data1 %>%
+  pivot_wider(names_from = Lfd_Nr, values_from = score_sum)
+
+
+s3write_using(x = as.data.table(df_wide), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd,"/star_satellites.rds",sep=""),
+              bucket = bucket, opts = list("region" = ""))
 
    #################
    # test si la somme des scores d'espèces = score STARij tot d'une espèce en fonction des pressions renseignées 
