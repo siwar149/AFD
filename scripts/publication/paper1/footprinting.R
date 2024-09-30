@@ -1,6 +1,9 @@
 rm(list = ls())
 gc()
 
+install.packages("ggrepel")
+library(ggrepel) 
+
 
 bucket1 <- "projet-esteem"
 set_wd1 <- "Gloria/matrices"
@@ -169,6 +172,59 @@ s3write_using(x = as.data.table(results2_countries), FUN = data.table::fwrite, n
               object = paste(set_wd3,"/pressures_countries.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
+
+# calculate consumptions based relevance of each pressure
+pressures$Lfd_Nr <- as.character(pressures$Lfd_Nr)
+
+global_scores <- global_scores %>%
+  mutate(shr = score / sum(score) * 100) %>%
+  left_join(pressures, by = c("pressure"="Lfd_Nr"))
+
+
+
+# calculate consumtion based footprint of each sector
+sfp <- t(L) %*% as.matrix(rowSums(star)) * as.matrix(f)
+
+sfp1 <- sfp %>%
+  as.data.table() %>%
+  cbind(label_IO, .data) %>%
+  group_by(NACE) %>%
+  summarise(V1 = sum(V1)) %>%
+  mutate(shr = V1 / sum(V1) * 100) %>%
+  arrange(desc(shr))
+
+sfp1 <- sfp1[1:7, c(1,3)]
+sfp1[7,1] <- "X"
+sfp1[7,2] <- 100 - sum(sfp1[-7, 2])
+
+
+# Arrange the data by 'shr' in descending order and calculate positions for labels
+sfp1 <- sfp1 %>%
+  arrange(desc(shr)) %>%
+  mutate(
+    fraction = shr / sum(shr),                      # Fraction of each section
+    ymax = cumsum(fraction),                        # Cumulative sum for top of each section
+    ymin = c(0, head(ymax, n = -1)),                # Start point for each section
+    label_pos = (ymax + ymin) / 2,                  # Middle position for each section
+    label = paste0(round(shr, 1), "%"),             # Create labels
+    label_out = ifelse(shr < 5, "out", "in")        # Mark small portions for outside labels
+  )
+
+# Further increase the xlim to provide more space for labels
+p <- p + xlim(0.5, 3.5)  # Further extended from 3 to 3.5 for more space outside the donut
+
+# Separate labels for inside and outside positions
+p <- p + geom_text(aes(x = 1.5, y = label_pos, label = label), color = "white", size = 5, 
+                   data = filter(sfp1, label_out == "in"))  # Inside labels for larger slices
+
+# Use ggrepel for outside labels for smaller portions
+p <- p + geom_text_repel(aes(x = 3, y = label_pos, label = label), size = 5, 
+                         data = filter(sfp1, label_out == "out"), nudge_x = 1, 
+                         direction = "y", segment.size = 0.5, segment.color = "gray",
+                         force = 0.5)  # Adjust nudge and force parameters for better positioning
+
+# Show the plot
+print(p)
 
 
 
