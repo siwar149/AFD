@@ -118,7 +118,7 @@ pressures <- biotope %>%
   select(-threat) %>%
   unique()
 
-pressures[which(pressures$Lfd_Nr %in% top10$pressure),]
+lookup <- pressures[which(pressures$Lfd_Nr %in% top10$pressure),]
 
 
 class(top10$pressure)
@@ -140,6 +140,37 @@ for (var in top10$pressure) {
   results2 <- cbind(results2,fp)
   
 }
+
+
+class(results2)
+
+results2 <- cbind(label_IO, results2)
+
+results2_countries <- results2[, lapply(.SD, sum, na.rm = TRUE), by = .(iso, country), .SDcols = is.numeric]
+
+#changing names for ploting purposes
+setnames(results2, old = lookup$Lfd_Nr, new = lookup$pressure)
+
+target_colnames <- colnames(results2_countries)[3:12]
+
+# Create a named vector of new names where names are the old column names
+# This ensures we map the new names correctly to the old names, regardless of order
+name_mapping <- setNames(lookup$pressure, lookup$Lfd_Nr)
+
+# Ensure that we only rename columns that exist in both target_colnames and lookup$Lfd_Nr
+common_columns <- intersect(target_colnames, lookup$Lfd_Nr)
+
+# Rename the columns that match
+setnames(results2_countries, old = common_columns, new = name_mapping[common_columns])
+
+
+
+s3write_using(x = as.data.table(results2_countries), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd3,"/pressures_countries.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+
+
 
 
 # Initialize an empty list to store results
