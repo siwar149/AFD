@@ -39,24 +39,52 @@ map <- world_map %>%
 
 
 
-p <- map %>%
-  ggplot(aes(map_id = region, fill = `Pastures (Land use)`)) +
-  geom_map(map = world_map) +
-  geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
-               color = "black", fill = NA, size = 0.1) +
-  labs(fill = "nSTAR", fontface = "bold") +
-  scale_fill_gradient(low = "blue", high = "red") +
-  coord_map("moll") +
-  theme_bw() +
-  theme(axis.title.x = element_blank(),  # Remove x-axis label
-        axis.title.y = element_blank(),  # Remove y-axis label
-        axis.text.x = element_blank(),   # Remove x-axis values
-        axis.text.y = element_blank(),   # Remove y-axis values
-        axis.ticks = element_blank(),    # Remove tick marks from axes
-        panel.grid = element_blank(),    # Remove coordinate lines
-        plot.title = element_text(hjust = 0.5))  # Center plot title
+# Install necessary package if not already installed
+if (!requireNamespace("colorspace", quietly = TRUE)) {
+  install.packages("colorspace")
+}
 
-print(p)
+# Function to generate a random color gradient
+generate_random_gradient <- function() {
+  # Generate a random hue value for the gradient
+  h1 <- runif(1, 0, 360)
+  h2 <- runif(1, 0, 360)
+  
+  # Create a color gradient using the colorspace package
+  colorspace::sequential_hcl(5, h = c(h1, h2))
+}
+
+# Loop through variables 9 to 18 in the "map" dataset
+for (i in 9:18) {
+  
+  # Extract the variable name for the current index
+  var_name <- names(map)[i]
+  
+  # Generate a random color gradient
+  random_gradient <- generate_random_gradient()
+  
+  # Create the plot using ggplot2 with dynamic fill variable
+  p <- map %>%
+    ggplot(aes(map_id = region, fill = .data[[var_name]])) +
+    geom_map(map = world_map) +
+    geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
+                 color = "black", fill = NA, size = 0.1) +
+    labs(fill = "nSTAR", title = var_name) +  # Add title using labs()
+    scale_fill_gradientn(colours = random_gradient) +  # Use random color gradient
+    coord_map("moll") +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),  # Remove x-axis label
+          axis.title.y = element_blank(),  # Remove y-axis label
+          axis.text.x = element_blank(),   # Remove x-axis values
+          axis.text.y = element_blank(),   # Remove y-axis values
+          axis.ticks = element_blank(),    # Remove tick marks from axes
+          panel.grid = element_blank(),    # Remove coordinate lines
+          panel.border = element_rect(color = "black", size = 2),  # Thicker plot frame
+          plot.title = element_text(hjust = 0.5, face = "bold"))  # Center and bold title
+  
+  # Save the plot to the 'plots' directory with the variable name in the filename
+  ggsave(filename = paste0("plots/", var_name, ".png"), plot = p, width = 12, height = 8, dpi = 300)
+}
 
 
 
