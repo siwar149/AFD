@@ -107,6 +107,70 @@ sfp1[7,1] <- "X"
 sfp1[7,2] <- 100 - sum(sfp1[-7, 2])
 
 
+sfp1 <- sfp1 %>%
+  left_join(rp, by = "NACE")
+
+for (i in c(3:5)) {
+
+sfp1[7, i] <- 100 - sum(sfp1[-7, i])
+
+}
+
+
+# Reshape the data to long format
+sfp1_long <- sfp1 %>%
+  select(NACE, shr, efl, nh3, pl) %>%
+  tidyr::pivot_longer(cols = c(shr, efl, nh3, pl), 
+                      names_to = "variable", values_to = "value")
+
+# Create a variable to assign each layer (outer ring for NACE, inner rings for variables)
+sfp1_long <- sfp1_long %>%
+  mutate(layer = case_when(
+    variable == "shr" ~ 1,
+    variable == "efl" ~ 2,
+    variable == "nh3" ~ 3,
+    variable == "pl" ~ 4
+  ))
+
+
+# Create the nested donut plot using the default color palette
+plot <- ggplot(sfp1_long, aes(x = factor(layer), y = value, fill = NACE)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  scale_x_discrete(expand = c(0, 0)) +
+  theme_void() +
+  labs(title = "") +
+  theme(legend.position = "bottom",
+        legend.title = element_blank())
+  
+# Add arrows and labels to point out each donut layer (variable)
+plot <- plot +
+  # Arrow for "shr"
+  geom_segment(aes(x = 1.5, y = 80, xend = 1.5, yend = 45), 
+               arrow = arrow(length = unit(0.3, "cm")), color = "black") +
+  annotate("text", x = 1.5, y = 85, label = "Sector", size = 5, fontface = "bold", color = "black") +
+  
+  # Arrow for "efl"
+  geom_segment(aes(x = 2.5, y = 65, xend = 2.5, yend = 30), 
+               arrow = arrow(length = unit(0.3, "cm")), color = "black") +
+  annotate("text", x = 2.5, y = 70, label = "Forestry", size = 5, fontface = "bold", color = "black") +
+  
+  # Arrow for "nh3"
+  geom_segment(aes(x = 3.5, y = 50, xend = 3.5, yend = 15), 
+               arrow = arrow(length = unit(0.3, "cm")), color = "black") +
+  annotate("text", x = 3.5, y = 55, label = "NH3", size = 5, fontface = "bold", color = "black") +
+  
+  # Arrow for "pl"
+  geom_segment(aes(x = 4.5, y = 35, xend = 4.5, yend = 0), 
+               arrow = arrow(length = unit(0.3, "cm")), color = "black") +
+  annotate("text", x = 4.5, y = 40, label = "Pastures", size = 5, fontface = "bold", color = "black")
+
+
+
+ggsave(filename = paste0("plots/", "nested-donut", ".png"), plot = plot, width = 12, height = 8, dpi = 300)
+
+
+
 # Arrange the data by 'shr' in descending order and calculate positions for labels
 sfp1 <- sfp1 %>%
   arrange(desc(shr)) %>%

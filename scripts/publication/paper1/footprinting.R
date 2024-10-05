@@ -83,7 +83,7 @@ L <- s3read_using(FUN = data.table::fread,
 
 ### Starting with the footprinting analysis
 
-countries <- unique(label_FD$country)
+
 ncol(e)
 
 
@@ -91,7 +91,7 @@ L <- as.matrix(L)
 
 f <- rowSums(FD)
 
-# finding the pressure that exert most impact
+# finding the pressure that exerts most impact
 results1 <- list()
 
 for (var in colnames(e)) {
@@ -151,9 +151,7 @@ results2 <- cbind(label_IO, results2)
 
 results2_countries <- results2[, lapply(.SD, sum, na.rm = TRUE), by = .(iso, country), .SDcols = is.numeric]
 
-#changing names for ploting purposes
-setnames(results2, old = lookup$Lfd_Nr, new = lookup$pressure)
-
+# changing column names
 target_colnames <- colnames(results2_countries)[3:12]
 
 # Create a named vector of new names where names are the old column names
@@ -191,12 +189,99 @@ s3write_using(x = as.data.table(sfp), FUN = data.table::fwrite, na = "",
               bucket = bucket2, opts = list("region" = ""))
 
 
+# Pressure scores
+
+results2_pressures <- results2[, lapply(.SD, sum, na.rm = TRUE), by = .(NACE), .SDcols = is.numeric]
+
+# changing column names
+target_colnames <- colnames(results2_pressures)[2:11]
+
+name_mapping <- setNames(lookup$pressure, lookup$Lfd_Nr)
+
+common_columns <- intersect(target_colnames, lookup$Lfd_Nr)
+
+setnames(results2_pressures, old = common_columns, new = name_mapping[common_columns])
+
+
+s3write_using(x = as.data.table(results2_pressures), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd3,"/pressures_per_sector.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
+
+rp <- results2_pressures %>%
+  select(NACE, `Extensive_forestry (Land use)`, NH3, `Pastures (Land use)`) %>%
+  mutate(efl = `Extensive_forestry (Land use)` / sum(`Extensive_forestry (Land use)`) * 100,
+         nh3 = NH3 / sum(NH3) * 100,
+         pl = `Pastures (Land use)` / sum(`Pastures (Land use)`) * 100) %>%
+  select(NACE, efl, nh3, pl)
 
 
 
+
+# Calculating net footprint of nSTAR for specific countries
+sr <- s3read_using(FUN = data.table::fread,
+                     object = paste(set_wd3,"/score_pays-v3.rds",sep=""),
+                     bucket = bucket2, opts = list("region" = ""))
+
+sr <- label_IO %>%
+  left_join(sr, by = c("iso", "sector")) %>%
+  mutate(score= if_else(is.na(score), 0.0001, score)) %>%
+  select(score)
+  
+e1 <- sr / x
+
+
+cns <- c("USA", "CHN", "JPN", "DEU", "FRA", "GBR", "MDG",
+        "TZA", "LKA", "PNG", "CRI", "CIV", "COL", "BRA",
+        "IDN", "ECU", "PER", "MEX")
+
+countries <- unique(label_FD$country)
 
 # Initialize an empty list to store results
 results3 <- list()
+
+# Loop over each country
+for (country in countries) {
+  
+  # Indices of rows/columns for the current country in label_IO and label_FD
+  cnt1 <- which(label_IO$country == country)
+  cnt2 <- which(label_FD$country == country)
+  
+  # Indices of rows/columns for other countries in label_IO and label_FD
+  ncnt1 <- which(label_IO$country != country)
+  ncnt2 <- which(label_FD$country != country)
+  
+    
+  # Extract the column of "e" corresponding to the current variable
+  e1_dom <- as.matrix(e1[cnt1,])
+  e1_ext <- as.matrix(e1[ncnt1,])
+    
+  # Calculate fdom, fexp, and fimp
+  fdom <- sum(sr[cnt1,])
+  fexp <- t(e1_dom) %*% L[cnt1,cnt1] %*% rowSums(FD[cnt1, ncnt2, with = FALSE])
+  fimp <- t(e1_ext) %*% L[ncnt1,ncnt1] %*% rowSums(FD[ncnt1, cnt2, with = FALSE])
+    
+  # Store the results in a data.table row
+  results3[[length(results3) + 1]] <- data.table(
+    country = country,
+    var = var,
+    fdom = as.numeric(fdom),
+    fexp = as.numeric(fexp),
+    fimp = as.numeric(fimp)
+  )
+  
+}
+
+# Combine all the results into one data.table
+results3f <- rbindlist(results3)
+
+# View the final data table
+print(results3f)
+
+results3f <- results3f %>%
+  select(-var) %>%
+  mutate(nfp = fdom - fexp + fimp)
+
 
 # Loop over each country
 for (country in countries) {
@@ -233,9 +318,3 @@ for (country in countries) {
     )
   }
 }
-
-# Combine all the results into one data.table
-final_results <- rbindlist(results)
-
-# View the final data table
-print(final_results)
