@@ -180,12 +180,48 @@ global_scores <- global_scores %>%
 
 
 
-# calculate consumtion based footprint of each sector
-sfp <- t(L) %*% as.matrix(e1) * as.matrix(f)
+# calculate the footprint matrix
+E <- diag(as.numeric(as.matrix(e1))) %*% L %*% diag(f) 
+
+
+# calculate net footprint of each sector
+sectors <- unique(label_IO$NACE)
+
+sectoral_fp <- list()
+
+# Loop over each country
+for (sector in sectors) {
+  
+  # Indices of rows/columns for the current country in label_IO and label_FD
+  sec <- which(label_IO$NACE == sector)
+  
+  # Indices of rows/columns for other countries in label_IO and label_FD
+  nsec <- which(label_IO$NACE != sector)
+  
+  
+  # Calculate fdom, fexp, and fimp
+  fint <- sum(sr[sec,])
+  fout <- sum(rowSums(E[sec,nsec]))
+  finp <- sum(colSums(E[nsec,sec]))
+  
+  # Store the results in a data.table row
+  sectoral_fp[[length(sectoral_fp) + 1]] <- data.table(
+    sector = sector,
+    fint = as.numeric(fint),
+    fout = as.numeric(fout),
+    finp = as.numeric(finp)
+  )
+  
+}
+
+sfp <- rbindlist(sectoral_fp)
+
+sfp <- sfp %>%
+  mutate(nfp = fint + finp - fout)
 
 
 s3write_using(x = as.data.table(sfp), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd3,"/sector_pressures.rds",sep=""),
+              object = paste(set_wd3,"/sector_pressures-1.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 
@@ -209,11 +245,7 @@ s3write_using(x = as.data.table(results2_pressures), FUN = data.table::fwrite, n
 
 
 rp <- results2_pressures %>%
-  select(NACE, `Extensive_forestry (Land use)`, NH3, `Pastures (Land use)`) %>%
-  mutate(efl = `Extensive_forestry (Land use)` / sum(`Extensive_forestry (Land use)`) * 100,
-         nh3 = NH3 / sum(NH3) * 100,
-         pl = `Pastures (Land use)` / sum(`Pastures (Land use)`) * 100) %>%
-  select(NACE, efl, nh3, pl)
+  mutate(across(where(is.numeric), ~ . / sum(.) * 100))
 
 
 
