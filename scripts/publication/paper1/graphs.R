@@ -90,16 +90,16 @@ for (i in 9:18) {
 
 
 sfp <- s3read_using(FUN = data.table::fread,
-                                   object = paste(set_wd3,"/sector_pressures.rds",sep=""),
-                                   bucket = bucket2, opts = list("region" = ""))
+                     object = paste(set_wd3,"/sector_pressures.rds",sep=""),
+                     bucket = bucket2, opts = list("region" = ""))
 
 
 sfp1 <- sfp %>%
   as.data.table() %>%
   cbind(label_IO, .data) %>%
   group_by(NACE) %>%
-  summarise(V1 = sum(V1)) %>%
-  mutate(shr = V1 / sum(V1) * 100) %>%
+  summarise(score = sum(score)) %>%
+  mutate(shr = score / sum(score) * 100) %>%
   arrange(desc(shr))
 
 sfp1 <- sfp1[1:7, c(1,3)]

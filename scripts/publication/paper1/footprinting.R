@@ -181,7 +181,7 @@ global_scores <- global_scores %>%
 
 
 # calculate consumtion based footprint of each sector
-sfp <- t(L) %*% as.matrix(rowSums(star)) * as.matrix(f)
+sfp <- t(L) %*% as.matrix(e1) * as.matrix(f)
 
 
 s3write_using(x = as.data.table(sfp), FUN = data.table::fwrite, na = "", 
@@ -264,7 +264,6 @@ for (country in countries) {
   # Store the results in a data.table row
   results3[[length(results3) + 1]] <- data.table(
     country = country,
-    var = var,
     fdom = as.numeric(fdom),
     fexp = as.numeric(fexp),
     fimp = as.numeric(fimp)
@@ -281,6 +280,18 @@ print(results3f)
 results3f <- results3f %>%
   select(-var) %>%
   mutate(nfp = fdom - fexp + fimp)
+
+results3f1 <- results3f %>%
+  mutate(type = case_when(
+    fimp > fdom - fexp ~ "Net Importer",
+    fexp > fdom ~ "Net Exporter",
+    fdom > fimp - fexp ~ "Net Domestic Consumer"
+  ))
+
+s3write_using(x = as.data.table(results3f1), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd3,"/net-footprint-countries.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
+
 
 
 # Loop over each country
