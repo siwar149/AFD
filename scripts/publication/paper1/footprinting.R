@@ -309,7 +309,6 @@ results3f <- rbindlist(results3)
 print(results3f)
 
 results3f <- results3f %>%
-  select(-var) %>%
   mutate(nfp = fdom - fexp + fimp)
 
 results3f1 <- results3f %>%
@@ -325,7 +324,8 @@ s3write_using(x = as.data.table(results3f1), FUN = data.table::fwrite, na = "",
 
 
 
-# Loop over each country
+
+## Loop over each country
 for (country in countries) {
   
   # Indices of rows/columns for the current country in label_IO and label_FD

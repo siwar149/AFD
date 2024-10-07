@@ -88,6 +88,67 @@ for (i in 9:18) {
 }
 
 
+### Global net footprint of countries
+results3f1 <- s3read_using(FUN = data.table::fread,
+                    object = paste(set_wd3,"/net-footprint-countries.rds",sep=""),
+                    bucket = bucket2, opts = list("region" = ""))
+
+world_nfp <- results3f1 %>%
+  distinct() %>%
+  left_join(match_pays_gloria_WM, by=c("country"="pays_g"))
+
+
+map <- world_map %>%
+  left_join(world_nfp,by=c("region"="WM"))
+
+
+# Create the plot
+# Replace NA values in nfp with 0
+map <- map %>%
+  mutate(nfp = replace_na(nfp, 0))  # Replace NAs with 0
+
+# Define color palettes for each type
+color_palettes <- list(
+  "Net Importer" = c("white", "darkred"),  # Shades of blue
+  "Net Domestic Consumer" = c("white", "darkblue"),  # Shades of green
+  "Net Exporter" = c("white", "darkgreen")  # Shades of red
+)
+
+# Function to dynamically create a gradient based on nfp and type
+get_fill_colors <- function(type, nfp) {
+  colors <- color_palettes[[type]]
+  scales::gradient_n_pal(colors)(scales::rescale(nfp))
+}
+
+# Create the plot
+p <- ggplot() +
+  geom_polygon(data = world_map, aes(x = long, y = lat, group = group), 
+               color = "black", fill = NA, size = 0.1) +
+  
+  # Fill according to type and grade by nfp using the color gradient for each type
+  geom_map(data = map, aes(map_id = region, fill = get_fill_colors(type, nfp)), 
+           map = world_map) +
+  
+  # Manually define a color legend
+  scale_fill_identity(name = NULL, guide = "legend") +
+  
+  coord_map("moll") +
+  theme_bw() +
+  labs(fill = NULL, alpha = "nSTAR") +  # Remove legend title for fill
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom",   # Position legend at the bottom
+        legend.title = element_blank(),  # Remove the legend title
+        legend.key.size = unit(1, "cm"))  # Adjust legend key size
+
+# Display the plot
+print(p)
+
 
 
 
@@ -132,7 +193,7 @@ p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
   geom_bar(stat = "identity") +
   coord_flip() +  # This flips the plot to make it horizontal
   scale_fill_brewer(palette = "Dark2") +  # Use a dark color palette
-  labs(x = "Variables", y = "Value") +  # No plot title or legend title
+  labs(x = "", y = "Value") +  # No plot title or legend title
   theme_minimal() +  # A cleaner, minimal theme with white background
   theme(
     panel.background = element_rect(fill = "white", colour = "white"),  # White background
@@ -151,3 +212,4 @@ ggsave(filename = "plots/pressure-barplot.png", plot = p, width = 12, height = 8
 
 # Show the plot
 print(p)
+
