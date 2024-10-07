@@ -244,13 +244,12 @@ s3write_using(x = as.data.table(results2_pressures), FUN = data.table::fwrite, n
               bucket = bucket2, opts = list("region" = ""))
 
 
-rp <- results2_pressures %>%
-  mutate(across(where(is.numeric), ~ . / sum(.) * 100))
 
 
 
 
-# Calculating net footprint of nSTAR for specific countries
+
+## Calculating net footprint of nSTAR for specific countries
 sr <- s3read_using(FUN = data.table::fread,
                      object = paste(set_wd3,"/score_pays-v3.rds",sep=""),
                      bucket = bucket2, opts = list("region" = ""))

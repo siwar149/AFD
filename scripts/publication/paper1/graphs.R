@@ -4,6 +4,7 @@ gc()
 
 install.packages("mapproj")
 library("mapproj")
+library("tidyr")
 
 
 bucket1 <- "projet-esteem"
@@ -89,6 +90,8 @@ for (i in 9:18) {
 
 
 
+
+# net footprint of sectors barplot
 sfp <- s3read_using(FUN = data.table::fread,
                      object = paste(set_wd3,"/sector_pressures-1.rds",sep=""),
                      bucket = bucket2, opts = list("region" = ""))
@@ -98,12 +101,20 @@ sfp1 <- sfp %>%
   as.data.table() %>%
   mutate(shr = nfp / sum(nfp) * 100) %>%
   select(sector, nfp, shr) %>%
-  arrange(desc(shr))
+  arrange(desc(shr)) %>%
+  rename(`Total Net Fooprint (nSTAR)` = shr)
 
 sfp1 <- sfp1[1:7, c(1,3)]
 sfp1[7,1] <- "X"
 sfp1[7,2] <- 100 - sum(sfp1[-7, 2])
 
+
+results2_pressures <- s3read_using(FUN = data.table::fread,
+                     object = paste(set_wd3,"/pressures_per_sector.rds",sep=""),
+                     bucket = bucket2, opts = list("region" = ""))
+
+rp <- results2_pressures %>%
+  mutate(across(where(is.numeric), ~ . / sum(.) * 100))
 
 sfp1 <- sfp1 %>%
   left_join(rp, by = c("sector"="NACE")) %>%
@@ -112,32 +123,31 @@ sfp1 <- sfp1 %>%
 
 # Just making a rotated barplot
 
+# Use pivot_longer to reshape the dataset to long format
+sfp1_long <- sfp1 %>%
+  pivot_longer(cols = -sector, names_to = "variable", values_to = "value")
 
-
-# Arrange the data by 'shr' in descending order and calculate positions for labels
-sfp1 <- sfp1 %>%
-  arrange(desc(shr)) %>%
-  mutate(
-    fraction = shr / sum(shr),                      # Fraction of each section
-    ymax = cumsum(fraction),                        # Cumulative sum for top of each section
-    ymin = c(0, head(ymax, n = -1)),                # Start point for each section
-    label_pos = (ymax + ymin) / 2,                  # Middle position for each section
-    label = paste0(round(shr, 1), "%"),             # Create labels
-    label_out = ifelse(shr < 5, "out", "in")        # Mark small portions for outside labels
+# Create the horizontal barplot
+p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +  # This flips the plot to make it horizontal
+  scale_fill_brewer(palette = "Dark2") +  # Use a dark color palette
+  labs(x = "Variables", y = "Value") +  # No plot title or legend title
+  theme_minimal() +  # A cleaner, minimal theme with white background
+  theme(
+    panel.background = element_rect(fill = "white", colour = "white"),  # White background
+    plot.background = element_rect(fill = "white", colour = "white"),  # White plot background
+    text = element_text(color = "black"),  # Text color in black
+    axis.text = element_text(color = "black", size = 14, face = "bold"),  # Axis values bold & larger
+    axis.title = element_text(size = 16, face = "bold"),  # Axis labels bold & larger
+    legend.background = element_rect(fill = "white", colour = "white"),  # White legend background
+    legend.text = element_text(color = "black", size = 12, face = "bold"),  # Legend text bold & larger
+    legend.title = element_blank(),  # Remove legend title
+    plot.title = element_blank()  # Remove plot title
   )
 
-# Further increase the xlim to provide more space for labels
-p <- p + xlim(0.5, 3.5)  # Further extended from 3 to 3.5 for more space outside the donut
+ggsave(filename = "plots/pressure-barplot.png", plot = p, width = 12, height = 8, dpi = 300)
 
-# Separate labels for inside and outside positions
-p <- p + geom_text(aes(x = 1.5, y = label_pos, label = label), color = "white", size = 5, 
-                   data = filter(sfp1, label_out == "in"))  # Inside labels for larger slices
-
-# Use ggrepel for outside labels for smaller portions
-p <- p + geom_text_repel(aes(x = 3, y = label_pos, label = label), size = 5, 
-                         data = filter(sfp1, label_out == "out"), nudge_x = 1, 
-                         direction = "y", segment.size = 0.5, segment.color = "gray",
-                         force = 0.5)  # Adjust nudge and force parameters for better positioning
 
 # Show the plot
 print(p)
