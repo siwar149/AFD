@@ -15,6 +15,50 @@ set_wd2 <- "data/Gloria"
 set_wd3 <- "data/bio/rds"
 
 
+## destroying irwin
+cns <- c("USA", "CHN", "JPN", "DEU", "FRA", "GBR",
+         "LKA", "CIV", "BRA",
+         "IDN", "PER", "MEX")
+
+
+cns <- label_IO %>%
+  subset(iso %in% cns) %>%
+  select(country) %>%
+  unique()
+
+
+a <- results3f1[which(results3f1$country %in% cns$country),]
+a <- a %>%
+  mutate(fexp = -fexp) %>%
+  rename(`Dom.` = fdom,
+         `Exp.` = fexp,
+         `Imp.` = fimp,
+         `N F.` = nfp)
+  
+
+long_data <- pivot_longer(a, cols = c(`Dom.`, `Exp.`, `Imp.`, `N F.`), 
+                          names_to = "variable", values_to = "value")
+
+
+# Create the facet wrap bar plots, faceting by country and grouped by 'type'
+# Create the facet wrap bar plots, faceting by country and grouped by 'type'
+p <- ggplot(long_data, aes(x = variable, y = value, fill = variable)) +
+  geom_bar(stat = "identity") +  # Create bar plots
+  facet_wrap(~type + country, scales = "free", nrow = 6, ncol = 3) +  # Arrange into 6 rows and 3 columns
+  labs(title = "",
+       x = "",
+       y = "") +
+  scale_fill_manual(values = brewer.pal(4, "Dark2")) +  # Use the 'Dark2' color palette from RColorBrewer
+  theme_bw() +  # Use theme_bw for a clean black-and-white theme
+  theme(panel.border = element_rect(size = 2),
+        legend.title = element_blank(),
+        legend.position = "none")  # Make the panel borders thicker
+
+ggsave(filename = "plots/irwin-comparison.png", plot = p, width = 10, height = 12, dpi = 300)
+
+
+
+###
 
 results2_countries <- s3read_using(FUN = data.table::fread,
                   object = paste(set_wd3,"/pressures_countries.rds",sep=""),
