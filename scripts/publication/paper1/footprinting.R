@@ -81,15 +81,23 @@ L <- s3read_using(FUN = data.table::fread,
                   object = paste(set_wd1,"/L_2019.rds",sep=""),
                   bucket = bucket1, opts = list("region" = ""))
 
-### Starting with the footprinting analysis
-
-
-ncol(e)
-
 
 L <- as.matrix(L)
 
 f <- rowSums(FD)
+
+sr <- s3read_using(FUN = data.table::fread,
+                   object = paste(set_wd3,"/score_pays-v3.rds",sep=""),
+                   bucket = bucket2, opts = list("region" = ""))
+
+sr <- label_IO %>%
+  left_join(sr, by = c("iso", "sector")) %>%
+  mutate(score= if_else(is.na(score), 0.0001, score)) %>%
+  select(score)
+
+e1 <- sr / x
+
+##### Starting with the footprinting analysis
 
 # finding the pressure that exerts most impact
 results1 <- list()
@@ -250,16 +258,6 @@ s3write_using(x = as.data.table(results2_pressures), FUN = data.table::fwrite, n
 
 
 ## Calculating net footprint of nSTAR for specific countries
-sr <- s3read_using(FUN = data.table::fread,
-                     object = paste(set_wd3,"/score_pays-v3.rds",sep=""),
-                     bucket = bucket2, opts = list("region" = ""))
-
-sr <- label_IO %>%
-  left_join(sr, by = c("iso", "sector")) %>%
-  mutate(score= if_else(is.na(score), 0.0001, score)) %>%
-  select(score)
-  
-e1 <- sr / x
 
 
 cns <- c("USA", "CHN", "JPN", "DEU", "FRA", "GBR", "MDG",
@@ -288,7 +286,7 @@ for (country in countries) {
   e1_ext <- as.matrix(e1[ncnt1,])
     
   # Calculate fdom, fexp, and fimp
-  fdom <- sum(sr[cnt1,])
+  fdom <- sum(rowSums(E[cnt1,cnt1]))
   fexp <- t(e1_dom) %*% L[cnt1,cnt1] %*% rowSums(FD[cnt1, ncnt2, with = FALSE])
   fimp <- t(e1_ext) %*% L[ncnt1,ncnt1] %*% rowSums(FD[ncnt1, cnt2, with = FALSE])
     
@@ -318,8 +316,10 @@ results3f1 <- results3f %>%
     fdom > fimp - fexp ~ "Net Domestic Consumer"
   ))
 
+unique(results3f1$type)
+
 s3write_using(x = as.data.table(results3f1), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd3,"/net-footprint-countries.rds",sep=""),
+              object = paste(set_wd3,"/net-footprint-countries-v2.rds",sep=""),
               bucket = bucket2, opts = list("region" = ""))
 
 

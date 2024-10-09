@@ -88,7 +88,10 @@ for (i in 9:18) {
 }
 
 
-### Global net footprint of countries
+### Global net footprint of countries ###
+library(scales)
+library(RColorBrewer)
+
 results3f1 <- s3read_using(FUN = data.table::fread,
                     object = paste(set_wd3,"/net-footprint-countries.rds",sep=""),
                     bucket = bucket2, opts = list("region" = ""))
@@ -107,47 +110,43 @@ map <- world_map %>%
 map <- map %>%
   mutate(nfp = replace_na(nfp, 0))  # Replace NAs with 0
 
-# Define color palettes for each type
-color_palettes <- list(
-  "Net Importer" = c("white", "darkred"),  # Shades of blue
-  "Net Domestic Consumer" = c("white", "darkblue"),  # Shades of green
-  "Net Exporter" = c("white", "darkgreen")  # Shades of red
-)
-
-# Function to dynamically create a gradient based on nfp and type
-get_fill_colors <- function(type, nfp) {
-  colors <- color_palettes[[type]]
-  scales::gradient_n_pal(colors)(scales::rescale(nfp))
-}
 
 # Create the plot
 p <- ggplot() +
   geom_polygon(data = world_map, aes(x = long, y = lat, group = group), 
                color = "black", fill = NA, size = 0.1) +
   
-  # Fill according to type and grade by nfp using the color gradient for each type
-  geom_map(data = map, aes(map_id = region, fill = get_fill_colors(type, nfp)), 
+  # Fill according to type and grade by nfp
+  geom_map(data = map, aes(map_id = region, fill = type, alpha = nfp), 
            map = world_map) +
   
-  # Manually define a color legend
-  scale_fill_identity(name = NULL, guide = "legend") +
+  # Define colors for each type
+  scale_fill_manual(values = c("Net Importer" = "red", "Net Domestic Consumer" = "blue"), 
+                    guide = "legend") +  # Keep the legend
+  # Adjust alpha for gradient effect based on nfp
+  scale_alpha_continuous(range = c(0.3, 1), 
+                         guide = "none") +  # Adjust alpha range as needed
   
   coord_map("moll") +
+  labs(fill = NULL, alpha = "nSTAR") +  # Remove fill legend title
+  
   theme_bw() +
-  labs(fill = NULL, alpha = "nSTAR") +  # Remove legend title for fill
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         axis.text.x = element_blank(),
         axis.text.y = element_blank(),
         axis.ticks = element_blank(),
         panel.grid = element_blank(),
+        panel.border = element_rect(color = "black", size = 2),  # Thicker plot frame
         plot.title = element_text(hjust = 0.5),
         legend.position = "bottom",   # Position legend at the bottom
-        legend.title = element_blank(),  # Remove the legend title
-        legend.key.size = unit(1, "cm"))  # Adjust legend key size
+        legend.title = element_blank(), # Remove the legend title
+        legend.key.size = unit(1, "cm"))  # Adjust legend key size if needed
 
 # Display the plot
 print(p)
+
+ggsave(filename = "plots/world-net-footprint.png", plot = p, width = 12, height = 8, dpi = 300)
 
 
 
