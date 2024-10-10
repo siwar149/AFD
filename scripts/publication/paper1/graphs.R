@@ -58,7 +58,7 @@ ggsave(filename = "plots/irwin-comparison.png", plot = p, width = 10, height = 1
 
 
 
-###
+### World maps of different pressures
 
 results2_countries <- s3read_using(FUN = data.table::fread,
                   object = paste(set_wd3,"/pressures_countries.rds",sep=""),
