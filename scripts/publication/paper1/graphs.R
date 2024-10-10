@@ -99,6 +99,10 @@ generate_random_gradient <- function() {
   colorspace::sequential_hcl(5, h = c(h1, h2))
 }
 
+map <- map %>%
+  rename(`CO2 exc. short cycle org. carbon` = CO2_excl_short_cycle_org_c,
+         `CO2 org. short cycle carbon` = CO2_org_short_cycle_c)
+
 # Loop through variables 9 to 18 in the "map" dataset
 for (i in 9:18) {
   
@@ -108,6 +112,9 @@ for (i in 9:18) {
   # Generate a random color gradient
   random_gradient <- generate_random_gradient()
   
+  # Reverse the color gradient to assign darkest color to highest values
+  reversed_gradient <- rev(random_gradient)
+  
   # Create the plot using ggplot2 with dynamic fill variable
   p <- map %>%
     ggplot(aes(map_id = region, fill = .data[[var_name]])) +
@@ -115,7 +122,7 @@ for (i in 9:18) {
     geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
                  color = "black", fill = NA, size = 0.1) +
     labs(fill = "nSTAR", title = var_name) +  # Add title using labs()
-    scale_fill_gradientn(colours = random_gradient) +  # Use random color gradient
+    scale_fill_gradientn(colours = reversed_gradient) +  # Use reversed color gradient
     coord_map("moll") +
     theme_bw() +
     theme(axis.title.x = element_blank(),  # Remove x-axis label
@@ -130,6 +137,50 @@ for (i in 9:18) {
   # Save the plot to the 'plots' directory with the variable name in the filename
   ggsave(filename = paste0("plots/", var_name, ".png"), plot = p, width = 12, height = 8, dpi = 300)
 }
+
+
+#facet wrap
+map <- map %>%
+  select(-CH4, -PM25_bio)
+
+
+selected_vars <- names(map)[9:14]
+
+# Reshape the data for ggplot2 to work with facet_wrap
+# You will gather the selected variables into a long format
+map_long <- map %>%
+  pivot_longer(cols = all_of(selected_vars), names_to = "variable", values_to = "value")
+
+# Generate a list of random color gradients for each variable
+color_gradients <- lapply(1:6, function(x) generate_random_gradient())
+
+# Function to apply different scales per facet
+p <- map_long %>%
+  group_by(variable) %>%
+  ggplot(aes(map_id = region, fill = value)) +
+  geom_map(map = world_map) +
+  geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
+               color = "black", fill = NA, size = 0.1) +
+  labs(fill = "nSTAR", title = "") +  # Add a common title
+  coord_map("moll") +
+  facet_wrap(~variable, ncol = 3, scales = "free") +  # Facet the plots by variable, free scales
+  theme_bw() +
+  theme(axis.title.x = element_blank(),  # Remove x-axis label
+        axis.title.y = element_blank(),  # Remove y-axis label
+        axis.text.x = element_blank(),   # Remove x-axis values
+        axis.text.y = element_blank(),   # Remove y-axis values
+        axis.ticks = element_blank(),    # Remove tick marks from axes
+        panel.grid = element_blank(),    # Remove coordinate lines
+        panel.border = element_rect(color = "black", size = 2),  # Thicker plot frame
+        plot.title = element_text(hjust = 0.5, face = "bold"),    # Center and bold title
+        strip.text = element_text(face = "bold"))  # Bold facet labels
+
+# Apply different color scales for each facet dynamically
+p <- p + scale_fill_gradientn(colours = color_gradients)
+
+# Save the facet-wrapped plot to the 'plots' directory
+ggsave(filename = "plots/faceted_map_unique_colors.png", plot = p, width = 12, height = 8, dpi = 300)
+
 
 
 ### Global net footprint of countries ###

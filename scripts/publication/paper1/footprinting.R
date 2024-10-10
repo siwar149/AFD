@@ -134,21 +134,43 @@ lookup <- pressures[which(pressures$Lfd_Nr %in% top10$pressure),]
 
 class(top10$pressure)
 
-
+countries <- unique(label_FD$country)
 # calculate disaggregated footprints for the top 10
 
-results2 <- data.table()
+results2 <- list()
 
 for (var in top10$pressure) {
   
   e_n <- as.matrix(e[,..var])
   
-  fp <- (t(L) %*% e_n) * as.matrix(f)
+  for (country in countries) {
+  # Indices of rows/columns for the current country in label_IO and label_FD
+  cnt1 <- which(label_IO$country == country)
+  cnt2 <- which(label_FD$country == country)
   
-  print(dim(fp))
+  # Indices of rows/columns for other countries in label_IO and label_FD
+  ncnt1 <- which(label_IO$country != country)
+  ncnt2 <- which(label_FD$country != country)
   
-  # Store the results in the data table
-  results2 <- cbind(results2,fp)
+  
+  # Extract the column of "e" corresponding to the current variable
+  e1_dom <- as.matrix(e_n[cnt1,])
+  e1_ext <- as.matrix(e_n[ncnt1,])
+  
+  # Calculate fdom, fexp, and fimp
+  fdom <- sum(sr[cnt1,])
+  fexp <- t(e1_dom) %*% L[cnt1,cnt1] %*% rowSums(FD[cnt1, ncnt2, with = FALSE])
+  fimp <- t(e1_ext) %*% L[ncnt1,ncnt1] %*% rowSums(FD[ncnt1, cnt2, with = FALSE])
+  
+  
+  # Store the results in a data.table row
+  results2[[length(results2) + 1]] <- data.table(
+    country = country,
+    fdom = as.numeric(fdom),
+    fexp = as.numeric(fexp),
+    fimp = as.numeric(fimp))
+ 
+  }
   
 }
 
