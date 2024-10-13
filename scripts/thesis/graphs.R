@@ -2,8 +2,8 @@
 
 #install.packages("viridis")  # Install
 #library("viridis")           # Load
-#install.packages("ggsci")
-#library("ggsci")
+install.packages("ggsci")
+library("ggsci")
 install.packages("mapproj")
 library("mapproj")
 library(RColorBrewer)
@@ -64,7 +64,7 @@ brewer_palette <- brewer_palette[c(4:12)]
 custom_palette <- c("#7F7F7F", "#66C2A5", "#8DA0CB", "#A6D854", 
                     "#4D4D4D", "#B2E2E2", "#5E4FA2", "#5AAE61", "#E78AC3")
 
-# Example of using a predefined palette close to the custom colors
+
 p <- ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
   geom_bar(stat = "identity", color = "black", alpha = 0.7) +
   labs(x = "", y = "(%) Output") +
@@ -73,15 +73,14 @@ p <- ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
   theme(
     legend.position = "bottom",    # Position the legend at the bottom
     legend.key = element_blank(),  # Remove the legend keys (the little squares)
-    legend.title = element_text(size = 10),   # Customize legend title size
-    legend.text = element_text(size = 8),     # Customize legend text size
-    axis.text = element_text(size = 12, face = "bold"),  # Make axis text larger and bold
-    axis.title = element_text(size = 14, face = "bold"), # Make axis title larger and bold
-    #axis.line = element_line(color = "black", size = 1), # Make axis lines thicker and darker
-    axis.ticks = element_line(color = "black", size = 1), # Make axis ticks thicker and darker
-    panel.border = element_rect(color = "black", size = 2.3),  # Thicker, darker panel border
-    panel.grid.major = element_line(color = "grey80"),          # Optionally darken grid lines
-    panel.grid.minor = element_blank()                          # Remove minor grid lines if you want cleaner look
+    legend.title = element_text(size = 12, face = "bold"),   # Customize legend title size and boldness
+    legend.text = element_text(size = 10, face = "bold"),    # Customize legend text size and boldness
+    axis.text = element_text(size = 12, face = "bold"),      # Make axis text larger and bold
+    axis.title = element_text(size = 14, face = "bold"),     # Make axis title larger and bold
+    axis.ticks = element_line(color = "black", size = 1),    # Make axis ticks thicker and darker
+    panel.border = element_rect(color = "black", size = 2.3),# Thicker, darker panel border
+    panel.grid.major = element_line(color = "grey80"),       # Optionally darken grid lines
+    panel.grid.minor = element_blank()                       # Remove minor grid lines if you want a cleaner look
   )
 
 ggsave(filename = "plots/1per_cent_shock.png", plot = p, width = 14, height = 8, dpi = 300)
@@ -210,16 +209,19 @@ p <- ggplot(Teu1, aes(x = NACE, y = score, fill = factor(NACE))) +  # Use fill t
   labs(x = "Sectors", y = "nSTAR") +
   theme_bw() +
   theme(
-    legend.position = "bottom",         # Position the legend at the bottom
-    legend.key = element_blank(),       # Remove the legend keys (the little squares)
-    legend.title = element_blank(),  # Customize legend title size
-    legend.text = element_text(size = 8)     # Customize legend text size
+    legend.position = "none",                # Eliminate the legend
+    axis.title = element_text(size = 14, face = "bold"),  # Bold and larger axis titles
+    axis.text = element_text(size = 12, face = "bold"),   # Bold and larger axis text
+    strip.text = element_text(size = 14, face = "bold"),  # Bold and larger facet titles (headings)
+    legend.key = element_blank(),            # Remove the legend keys (the little squares)
+    legend.title = element_blank(),          # Remove legend title
+    legend.text = element_text(size = 8)     # Customize legend text size (even though legend is removed)
   ) +
-  facet_wrap(~ country, scales = "free")  # Facet by country
+  facet_wrap(~ country, scales = "free", ncol = 3, nrow = 4)  # Facet by country, with 3 columns and 4 rows
 
 
 # Save the plot to a file
-ggsave(filename = "plots/exposure_ind.png", plot = p, width = 14, height = 8, dpi = 300)
+ggsave(filename = "plots/exposure_ind.png", plot = p, width = 10, height = 12, dpi = 300)
 
 
 
@@ -249,7 +251,12 @@ Teu2 <- Teu1 %>%
 p <- ggplot(Teu2, aes(x = country, y = exposure)) +
   geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +
   theme_bw() +
-  theme(plot.title = element_blank()) +
+  theme(
+    plot.title = element_blank(),
+    panel.border = element_rect(color = "black", size = 2),  # Thicker plot border
+    axis.title = element_text(size = 14, face = "bold"),     # Larger and bold axis titles
+    axis.text = element_text(size = 12, face = "bold")       # Larger and bold axis text
+  ) +
   labs(x = "Countries", y = "(%) financial assets")
 
 ggsave(filename = "plots/exposure_tot.png", plot = p, width = 12, height = 8, dpi = 300)

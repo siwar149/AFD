@@ -210,8 +210,8 @@ global_scores <- global_scores %>%
 
 
 
-# calculate the footprint matrix
-E <- diag(as.numeric(as.matrix(e1))) %*% L %*% diag(f) 
+# calculate the environmental impact matrix
+E <- diag(e1$score) %*% L %*% diag(f) 
 
 
 # calculate net footprint of each sector
