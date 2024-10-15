@@ -20,9 +20,6 @@ label_QT <- s3read_using(FUN = read.csv,
                          bucket = bucket2, opts = list("region" = ""))
 
 
-View(label_QT[label_QT$Sat_head_indicator == "Material",])
-
-
 m <- c("Iron ores", "Bauxite and other aluminium ores - gross ore",
        "Copper ores", "Manganese ores")
 
@@ -33,6 +30,8 @@ metals1 <- as.data.table(t(metals))
 colnames(metals1) <- m
 
 summary(metals1)
+
+metals1 <- cbind(label_IO, metals1)
 
 
 # Let the footprinting start
@@ -71,22 +70,31 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'SVN', 'ESP', 'SWE', 'XEU')
 
 
-index <- which(label_FD$iso %in% eu)
+index <- which(label_IO$iso %in% eu)
 
-eu_f <- rowSums(FD[, ..index])
+f <- rowSums(FD)
 
 e <- metals1[, lapply(.SD, function(col) col / x[[1]])]
+
 
 fp <- data.table()
 
 for (var in colnames(e)) {
  
-  var = t(L) %*% as.matrix(e[,..var]) * as.matrix(eu_f)
+  E = diag(e[[var]]) %*% L %*% diag(f)
   
-  fp <- cbind(fp, var)
+  v <- rowSums(E[,index])
+  
+  fp <- cbind(fp, v)
+  
+  print(paste(var," done", sep = " "))
 }
 
+rm(E)
+gc()
 fp <- cbind(label_IO, fp)
+
+colnames(fp)[4:7] <- m
 
 fp_c <- fp[, lapply(.SD, sum, na.rm = TRUE), by = .(iso, country), .SDcols = is.numeric]
 
