@@ -115,5 +115,5 @@ fpt <- fpt %>%
 
 
 s3write_using(x = as.data.table(fpt), FUN = write.csv, na = "", 
-              object = "data/European_metal_footprints.rds",
+              object = "data/European_metal_footprints.csv",
               bucket = bucket2, opts = list("region" = ""))
