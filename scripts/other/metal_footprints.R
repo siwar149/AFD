@@ -31,16 +31,25 @@ colnames(metals1) <- m
 
 summary(metals1)
 
-metals1 <- cbind(label_IO, metals1)
-
-
-# Let the footprinting start
-
 label_IO <- as.data.table(s3read_using(FUN = readRDS,
                                        object = paste(set_wd2,"/label_IO.rds",sep=""),
                                        bucket = bucket2, opts = list("region" = "")))
 
 colnames(label_IO) <- c("iso", "country", "sector")
+
+metals1 <- cbind(label_IO, metals1)
+
+s3write_using(x = as.data.table(metals1), FUN = write.csv, na = "", 
+              object = "data/Production_metals_gloria.csv",
+              bucket = bucket2, opts = list("region" = ""))
+
+met <- metals1[, lapply(.SD, sum, na.rm = T), by = .(iso, country), .SDcols = is.numeric]
+
+
+  
+# Let the footprinting start
+
+
 
 x <- s3read_using(FUN = data.table::fread,
                   object = paste(set_wd1,"/x_2019.rds",sep=""),
@@ -70,7 +79,7 @@ eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
          'SVN', 'ESP', 'SWE', 'XEU')
 
 
-index <- which(label_IO$iso %in% eu)
+index <- which(label_IO$iso %in% eu & label_IO$sector == "Motor vehicles, trailers and semi-trailers")
 
 f <- rowSums(FD)
 
@@ -117,3 +126,25 @@ fpt <- fpt %>%
 s3write_using(x = as.data.table(fpt), FUN = write.csv, na = "", 
               object = "data/European_metal_footprints.csv",
               bucket = bucket2, opts = list("region" = ""))
+
+fpt <- s3read_using(FUN = read.csv,
+                  object = "data/European_metal_footprints.csv",
+                  bucket = bucket2, opts = list("region" = ""))
+
+match_pays_gloria_WM <- read_excel("data/match_pays_gloria_WM.xlsx", 
+                                   sheet = "WM_Olson_gloria")
+
+eu_f <- which(label_FD$iso %in% eu)
+
+
+m1 <- c("Iron ores", "Aluminium ore", "Copper ores", "Other non-ferrous ores")
+
+dm <- data.table()
+for (metal in m1) {
+  
+  v <- rowSums(FD[which(label_IO$sector == metal), ..eu_f])
+  
+  dm <- cbind(dm, v)
+}
+
+dm <- cbind(unique(label_IO$country), dm)
