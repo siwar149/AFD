@@ -51,6 +51,12 @@ press <- as.numeric(colnames(star)[c(5:108)])
 
 biotope <- biotope[which(biotope$Lfd_Nr %in% press),]
 
+pressures <- biotope %>%
+  select(-threat) %>%
+  unique()
+
+pressures
+
 # fixing some values
 biotope[Lfd_Nr %in% c(68:72), pressure := paste0(pressure, " (Land use)")]
 biotope[Lfd_Nr %in% c(80:84), pressure := paste0(pressure, " (PDF)")]
@@ -100,19 +106,41 @@ e1 <- sr / x
 ##### Starting with the footprinting analysis
 
 # finding the pressure that exerts most impact
+countries <- unique(label_FD$country)
+
+pa <- c("2572", "2426", "2280", "72", "1915", "1842")
+
 results1 <- list()
 
-for (var in colnames(e)) {
+for (var in pa) {
   
-  e_n <- as.matrix(e[,..var])
+  E <- diag(e[[var]]) %*% L %*% diag(f)
   
-  s <- t(e_n) %*% L %*% f
-  
-  results1[[length(results1) + 1]] <- data.table(
-    pressure = var,
-    score = as.numeric(s)
-  )
-  
+  for (country in countries) {
+    
+    # Indices of rows/columns for the current country in label_IO and label_FD
+    con <- which(label_IO$country == country)
+    
+    # Indices of rows/columns for other countries in label_IO and label_FD
+    ncon <- which(label_IO$country != country)
+    
+    
+    # Calculate fdom, fexp, and fimp
+    fdom <- sum(sr[con,])
+    fexp <- sum(rowSums(E[con,ncon]))
+    fimp <- sum(colSums(E[ncon,con]))
+    
+    # Store the results in a data.table row
+    results1[[length(results1) + 1]] <- data.table(
+      country = country,
+      psr =  var,
+      fdom = as.numeric(fdom),
+      fexp = as.numeric(fexp),
+      fimp = as.numeric(fimp)
+    )
+    
+    print(paste("for ", var, ": ", country," done!"))
+  }
 }
 
 global_scores <- rbindlist(results1)
@@ -346,39 +374,46 @@ s3write_using(x = as.data.table(results3f1), FUN = data.table::fwrite, na = "",
 
 
 
+E <- diag(e1$score) %*% L %*% diag(f)
 
-## Loop over each country
+country_fp <- list()
+## Net footprint of countries
 for (country in countries) {
-  
   # Indices of rows/columns for the current country in label_IO and label_FD
-  cnt1 <- which(label_IO$country == country)
-  cnt2 <- which(label_FD$country == country)
+  con <- which(label_IO$country == country)
   
   # Indices of rows/columns for other countries in label_IO and label_FD
-  ncnt1 <- which(label_IO$country != country)
-  ncnt2 <- which(label_FD$country != country)
+  ncon <- which(label_IO$country != country)
   
-  # Loop over each variable in the columns of "e"
-  for (var in colnames(e)) {
-    
-    # Extract the column of "e" corresponding to the current variable
-    e_cnt1_var <- as.matrix(e[,..var])
-    e_cnt1_var[ncnt1,] <- 0
-    e_ncnt1_var <- as.matrix(e[,..var])
-    e_ncnt1_var[cnt1,] <- 0
-    
-    # Calculate fdom, fexp, and fimp
-    fdom <- t(e_cnt1_var) %*% L %*% rowSums(FD[, cnt2, with = FALSE])
-    fexp <- t(e_cnt1_var) %*% L %*% rowSums(FD[, ncnt2, with = FALSE])
-    fimp <- t(e_ncnt1_var) %*% L %*% rowSums(FD[, cnt2, with = FALSE])
-    
-    # Store the results in a data.table row
-    results[[length(results) + 1]] <- data.table(
-      country = country,
-      var = var,
-      fdom = as.numeric(fdom),
-      fexp = as.numeric(fexp),
-      fimp = as.numeric(fimp)
-    )
-  }
+  
+  # Calculate fdom, fexp, and fimp
+  fdom <- sum(sr[con,])
+  fexp <- sum(rowSums(E[con,ncon]))
+  fimp <- sum(colSums(E[ncon,con]))
+  
+  # Store the results in a data.table row
+  country_fp[[length(country_fp) + 1]] <- data.table(
+    country = country,
+    fdom = as.numeric(fdom),
+    fexp = as.numeric(fexp),
+    fimp = as.numeric(fimp)
+  )
+  
+  print(paste(country," done!"))
 }
+
+country_fp <- rbindlist(country_fp)
+
+country_fp <- country_fp %>%
+  mutate(nfp = fdom - fexp + fimp)
+
+country_fp <- country_fp %>%
+  mutate(type = case_when(
+    fimp > fdom - fexp ~ "Net Importer",
+    fexp > fdom ~ "Net Exporter",
+    fdom > fimp - fexp ~ "Net Domestic Consumer"
+  ))
+
+s3write_using(x = as.data.table(country_fp), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd3,"/net-footprint-countries-v3.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))

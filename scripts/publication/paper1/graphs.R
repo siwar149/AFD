@@ -40,7 +40,7 @@ long_data <- pivot_longer(a, cols = c(`Dom.`, `Exp.`, `Imp.`, `N F.`),
                           names_to = "variable", values_to = "value")
 
 
-# Create the facet wrap bar plots, faceting by country and grouped by 'type'
+
 # Create the facet wrap bar plots, faceting by country and grouped by 'type'
 p <- ggplot(long_data, aes(x = variable, y = value, fill = variable)) +
   geom_bar(stat = "identity") +  # Create bar plots
