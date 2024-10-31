@@ -143,7 +143,11 @@ for (var in pa) {
   }
 }
 
-global_scores <- rbindlist(results1)
+results1 <- rbindlist(results1)
+
+s3write_using(x = as.data.table(results1), FUN = data.table::fwrite, na = "", 
+              object = paste(set_wd3,"/results1.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
 
 gs <- global_scores %>%
   filter(!pressure %in% c(80:84))
