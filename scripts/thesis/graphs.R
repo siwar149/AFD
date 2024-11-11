@@ -259,7 +259,35 @@ p <- ggplot(Teu2, aes(x = country, y = exposure)) +
   ) +
   labs(x = "Countries", y = "(%) financial assets")
 
-ggsave(filename = "plots/exposure_tot.png", plot = p, width = 12, height = 8, dpi = 300)
+
+data <- data.frame(
+  country = c("Germany", "France", "Spain", "Italy", "Belgium", "Poland", 
+              "Portugal", "Austria", "Hungary", "Slovakia", "Luxembourg", "Croatia"),
+  exposure = c(32.2, 41.9, 42.0, 50.5, 43.6, 32.1, 43.1, 48.5, 44.4, 34.5, 32.8, 38.1)
+)
+
+
+p <- ggplot(data, aes(x = country, y = exposure)) +
+  # Bar for exposure
+  geom_bar(stat = "identity", fill = "navy", color = "black") +
+  # Transparent rectangle up to 100 with dashed border
+  geom_rect(aes(xmin = as.numeric(factor(country)) - 0.4, xmax = as.numeric(factor(country)) + 0.4,
+                ymin = exposure, ymax = 100),
+            fill = NA, color = "black", linetype = "dashed") +
+  coord_flip() +
+  # Axis labels and plot title
+  labs(x = "Country", y = "(%) National financial assets", title = "Exposure") +
+  # Set y-axis limit
+  ylim(0, 100) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    panel.border = element_rect(color = "black", size = 2),  # Thicker plot border
+    axis.title = element_text(size = 14, face = "bold"),     # Larger and bold axis titles
+    axis.text = element_text(size = 12, face = "bold")       # Larger and bold axis text
+  )
+
+ggsave(filename = "plots/exposure_tot.png", plot = p, width = 6, height = 4, dpi = 300)
 
 
 
