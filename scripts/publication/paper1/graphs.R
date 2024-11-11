@@ -226,6 +226,14 @@ sfp1 <- sfp1 %>%
   left_join(rp, by = c("sector"="NACE")) %>%
   mutate(across(where(is.numeric), ~ ifelse(is.na(.), 100 - sum(., na.rm = TRUE), .)))
 
+n_s <- read_excel("data/NACE.xlsx", sheet = "Feuil1")
+
+sfp1 <- sfp1 %>%
+  left_join(n_s, by = c("sector"="nace"))
+
+sfp1 <- sfp1 %>%
+  select(-sector) %>%
+  rename(sector = sector.y)
 
 # Just making a rotated barplot
 
@@ -235,10 +243,11 @@ sfp1_long <- sfp1 %>%
 
 # Create the horizontal barplot
 p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
-  geom_bar(stat = "identity") +
+  geom_bar(stat = "identity", position = position_fill(reverse = T)) +
   coord_flip() +  # This flips the plot to make it horizontal
   scale_fill_brewer(palette = "Dark2") +  # Use a dark color palette
-  labs(x = "", y = "Value") +  # No plot title or legend title
+  labs(x = "Pressure", y = "(%)") +  # No plot title or legend title
+  scale_y_continuous(labels = function(x) x * 100) +
   theme_minimal() +  # A cleaner, minimal theme with white background
   theme(
     panel.background = element_rect(fill = "white", colour = "white"),  # White background
@@ -247,8 +256,9 @@ p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
     axis.text = element_text(color = "black", size = 14, face = "bold"),  # Axis values bold & larger
     axis.title = element_text(size = 16, face = "bold"),  # Axis labels bold & larger
     legend.background = element_rect(fill = "white", colour = "white"),  # White legend background
-    legend.text = element_text(color = "black", size = 12, face = "bold"),  # Legend text bold & larger
+    legend.text = element_text(color = "black", size = 12),  # Legend text bold & larger
     legend.title = element_blank(),  # Remove legend title
+    legend.position = "bottom",
     plot.title = element_blank()  # Remove plot title
   )
 
