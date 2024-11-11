@@ -245,7 +245,7 @@ sfp1_long <- sfp1 %>%
 p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
   geom_bar(stat = "identity", position = position_fill(reverse = T)) +
   coord_flip() +  # This flips the plot to make it horizontal
-  scale_fill_brewer(palette = "Dark2") +  # Use a dark color palette
+  scale_fill_brewer(palette = "Dark2", guide = guide_legend(nrow = 4)) +  # Use a dark color palette
   labs(x = "Pressure", y = "(%)") +  # No plot title or legend title
   scale_y_continuous(labels = function(x) x * 100) +
   theme_minimal() +  # A cleaner, minimal theme with white background
@@ -262,7 +262,7 @@ p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
     plot.title = element_blank()  # Remove plot title
   )
 
-ggsave(filename = "plots/pressure-barplot.png", plot = p, width = 12, height = 8, dpi = 300)
+ggsave(filename = "plots/pressure-barplot.png", plot = p, width = 13, height = 7, dpi = 300)
 
 
 # Show the plot
