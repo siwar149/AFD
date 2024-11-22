@@ -84,21 +84,11 @@ map <- world_map %>%
 
 
 
-# Install necessary package if not already installed
-if (!requireNamespace("colorspace", quietly = TRUE)) {
-  install.packages("colorspace")
-}
 
-# Define a fixed color gradient from white to purple to dark blue
-fixed_gradient <- colorspace::sequential_hcl(5, h = c(270, 250), l = c(100, 40, 10), power = 1.2)
-
-
-map <- map %>%
-  rename(`CO2 exc. short cycle org. carbon` = CO2_excl_short_cycle_org_c,
-         `CO2 org. short cycle carbon` = CO2_org_short_cycle_c)
+map[,8:13] <- log(map[,8:13])
 
 # Loop through variables 9 to 18 in the "map" dataset
-for (i in 9:18) {
+for (i in 8:13) {
   
   # Extract the variable name for the current index
   var_name <- names(map)[i]
@@ -112,8 +102,8 @@ for (i in 9:18) {
     geom_map(map = world_map) +
     geom_polygon(data = world_map, aes(x = long, y = lat, group = group),
                  color = "black", fill = NA, size = 0.1) +
-    labs(fill = "nSTAR", title = var_name) +  # Add title using labs()
-    scale_fill_gradientn(colours = fixed_gradient) +  # Use reversed color gradient
+    labs(fill = "nSTAR", title = "") +  # Add title using labs()
+    scale_fill_gradient(low = "blue", high = "red") +  # Use reversed color gradient
     coord_map("moll") +
     theme_bw() +
     theme(axis.title.x = element_blank(),  # Remove x-axis label
@@ -167,7 +157,7 @@ p <- ggplot() +
            map = world_map) +
   
   # Define colors for each type
-  scale_fill_manual(values = c("Net Importer" = "red", "Net Domestic Consumer" = "blue"), 
+  scale_fill_manual(values = c("Net Importer" = "red", "Net Domestic Consumer" = "blue", "Net Exporter" = "darkgreen"), 
                     guide = "legend") +  # Keep the legend
   # Adjust alpha for gradient effect based on nfp
   scale_alpha_continuous(range = c(0.3, 1), 
@@ -192,7 +182,7 @@ p <- ggplot() +
 # Display the plot
 print(p)
 
-ggsave(filename = "plots/world-net-footprint.png", plot = p, width = 12, height = 8, dpi = 300)
+ggsave(filename = "plots/world-net-footprint-2.png", plot = p, width = 12, height = 8, dpi = 300)
 
 
 

@@ -49,7 +49,6 @@ ext <- s3read_using(FUN = readRDS,
 
 
 
-
 # handling final demand and ext
 colnames(Y) <- fd$country
 Yc <- agg(Y)
@@ -63,3 +62,67 @@ countries <- unique(io$country)
 
 
 
+# footprinting
+MP <- ext * L
+
+results_all <- list()
+
+for (country in countries) {
+  print(country)
+  
+  com <- sum(Yc[, country] * t(MP[which(io$country == country),]))
+  exp <- sum(rowSums(Yc[, colnames(Yc) != country]) * t(MP[which(io$country == country),]))
+  imp <- sum(Yc[, country] * t(MP[which(io$country != country),]))
+  
+  results_all[[length(results_all) + 1]] <- data.table(
+    country = country,
+    com = as.numeric(com),
+    exp = as.numeric(exp),
+    imp = as.numeric(imp))
+  
+}
+
+results <- rbindlist(results_all)
+
+results <- results %>%
+  mutate(nfp = com - exp + imp)
+
+results <- results %>%
+  mutate(type = case_when(
+    imp > exp ~ "Net Importer",
+    exp > com ~ "Net Exporter",
+    com > imp - exp ~ "Net Domestic Consumer"
+  ))
+
+
+# footprinting of specific pressures
+star <- s3read_using(FUN = readRDS,
+                     object = paste(set_wd3,"/star_satellites.rds",sep=""),
+                     bucket = bucket2, opts = list("region" = ""))
+
+
+pa <- c("2572", "2426", "2280", "72", "1915", "1842")
+
+colnames(star)
+
+pressure_results <- list()
+for (var in pa) {
+  print(var)
+  MP <- star[,var] * L
+  
+  for (country in countries) {
+    fp <- sum(MP %*% Yc[,country])
+    
+    pressure_results[[length(pressure_results) + 1]] <- data.table(
+      country = country,
+      var = var,
+      value = fp)
+    
+  }
+}
+
+
+p_results <- rbindlist(pressure_results)
+
+p_results <- p_results %>%
+  pivot_wider(names_from = var, values_from = value)
