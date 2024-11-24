@@ -147,6 +147,8 @@ map <- map %>%
   mutate(nfp = replace_na(nfp, 0))  # Replace NAs with 0
 
 
+map$type[(map$region) == "Greenland"] <- NA
+
 # Create the plot
 p <- ggplot() +
   geom_polygon(data = world_map, aes(x = long, y = lat, group = group), 
@@ -157,7 +159,7 @@ p <- ggplot() +
            map = world_map) +
   
   # Define colors for each type
-  scale_fill_manual(values = c("Net Importer" = "red", "Net Domestic Consumer" = "blue", "Net Exporter" = "darkgreen"), 
+  scale_fill_manual(values = c("Net Importer" = "darkred", "Net Domestic Consumer" = "darkblue", "Net Exporter" = "darkgreen"), 
                     guide = "legend") +  # Keep the legend
   # Adjust alpha for gradient effect based on nfp
   scale_alpha_continuous(range = c(0.3, 1), 

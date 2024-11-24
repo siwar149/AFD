@@ -48,42 +48,34 @@ g1 <- g1 %>%
   left_join(n_s, by = c("NACE"="nace"))
 
 
-ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
-  geom_bar(stat = "identity", color = "black", alpha = 0.7) +  # Adding transparency with alpha
-  labs(x = "EU", y = "(%) Output") +
-  scale_fill_uchicago(name = "") +  # Setting the title of the legend
-  theme_bw() +
-  theme(
-    legend.position = "bottom"  # Move the legend to the bottom
-  )
-
-
 # Use the 'Set3' palette, which includes colors similar to the custom ones
 brewer_palette <- brewer.pal(12, "Paired")
-brewer_palette <- brewer_palette[c(4:12)]
-custom_palette <- c("#7F7F7F", "#66C2A5", "#8DA0CB", "#A6D854", 
-                    "#4D4D4D", "#B2E2E2", "#5E4FA2", "#5AAE61", "#E78AC3")
 
 
-p <- ggplot(g1, aes(x = eu, y = revarx, fill = factor(sector))) +
+g1 <- g1 %>%
+  mutate(nrevarx = -1 * revarx)
+
+
+p <- ggplot(g1, aes(x = country, y = nrevarx, fill = factor(sector))) +
   geom_bar(stat = "identity", color = "black", alpha = 0.7) +
   labs(x = "", y = "(%) Output") +
   scale_fill_manual(values = brewer_palette, name = "") +  # Use the 'Set3' palette
-  theme_bw() +
+  geom_vline(xintercept = 0, linetype = "dashed", size = 1.5) +
+  coord_flip() +
+  scale_y_continuous(limits = c(-1, 0.1), breaks = seq(-1, 0.1, by = 0.10)) +
+  theme_classic() +
   theme(
     legend.position = "bottom",    # Position the legend at the bottom
     legend.key = element_blank(),  # Remove the legend keys (the little squares)
-    legend.title = element_text(size = 12, face = "bold"),   # Customize legend title size and boldness
-    legend.text = element_text(size = 10, face = "bold"),    # Customize legend text size and boldness
-    axis.text = element_text(size = 12, face = "bold"),      # Make axis text larger and bold
+    legend.title = element_blank(),   # Customize legend title size and boldness
+    legend.text = element_text(size = 10),    # Customize legend text size and boldness
+    axis.text = element_text(size = 12, color = "black", face = "bold"),      # Make axis text larger and bold
     axis.title = element_text(size = 14, face = "bold"),     # Make axis title larger and bold
-    axis.ticks = element_line(color = "black", size = 1),    # Make axis ticks thicker and darker
-    panel.border = element_rect(color = "black", size = 2.3),# Thicker, darker panel border
-    panel.grid.major = element_line(color = "grey80"),       # Optionally darken grid lines
-    panel.grid.minor = element_blank()                       # Remove minor grid lines if you want a cleaner look
+    axis.ticks = element_line(color = "black", size = 1)    # Make axis ticks thicker and darker
+
   )
 
-ggsave(filename = "plots/1per_cent_shock.png", plot = p, width = 14, height = 8, dpi = 300)
+ggsave("plots/1per_cent_schock-v2.png", plot = last_plot(), width = 11, height = 6, units = "in", dpi = 300)
 
 
 ### Financial graphs ###

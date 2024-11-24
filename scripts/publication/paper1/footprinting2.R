@@ -71,12 +71,14 @@ for (country in countries) {
   print(country)
   
   com <- sum(Yc[, country] * t(MP[which(io$country == country),]))
+  prd <- sum(rowSums(Yc) * t(MP[which(io$country == country),]))
   exp <- sum(rowSums(Yc[, colnames(Yc) != country]) * t(MP[which(io$country == country),]))
   imp <- sum(Yc[, country] * t(MP[which(io$country != country),]))
   
   results_all[[length(results_all) + 1]] <- data.table(
     country = country,
     com = as.numeric(com),
+    prd = as.numeric(prd),
     exp = as.numeric(exp),
     imp = as.numeric(imp))
   
@@ -84,15 +86,20 @@ for (country in countries) {
 
 results <- rbindlist(results_all)
 
+# nfp = prod - exp + imp
 results <- results %>%
-  mutate(nfp = com - exp + imp)
+  mutate(nfp = prd - exp + imp)
 
 results <- results %>%
   mutate(type = case_when(
-    imp > exp ~ "Net Importer",
+    imp > prd ~ "Net Importer",
     exp > com ~ "Net Exporter",
-    com > imp - exp ~ "Net Domestic Consumer"
+    com > exp ~ "Net Domestic Consumer"
   ))
+
+s3write_using(x = as.data.table(results), FUN = saveRDS, 
+              object = paste(set_wd3,"/results-v2.rds",sep=""),
+              bucket = bucket2, opts = list("region" = ""))
 
 
 # footprinting of specific pressures
