@@ -5,6 +5,7 @@ gc()
 install.packages("mapproj")
 library("mapproj")
 library("tidyr")
+library(RColorBrewer)
 
 
 bucket1 <- "projet-esteem"
@@ -20,23 +21,33 @@ cns <- c("USA", "CHN", "JPN", "DEU", "FRA", "GBR",
          "LKA", "CIV", "BRA",
          "IDN", "PER", "MEX")
 
+io <- as.data.table(s3read_using(FUN = readRDS,
+                                 object = paste(set_wd2,"/label_IO.rds",sep=""),
+                                 bucket = bucket2, opts = list("region" = "")))
 
-cns <- label_IO %>%
+colnames(io) <- c("iso", "country", "sector")
+
+cns <- io %>%
   subset(iso %in% cns) %>%
   select(country) %>%
   unique()
 
 
+results3f1 <- as.data.table(s3read_using(FUN = readRDS,
+                    object = paste(set_wd3,"/results-v2.rds",sep=""),
+                    bucket = bucket2, opts = list("region" = "")))
+
+
 a <- results3f1[which(results3f1$country %in% cns$country),]
 a <- a %>%
-  mutate(fexp = -fexp) %>%
-  rename(`Dom.` = fdom,
-         `Exp.` = fexp,
-         `Imp.` = fimp,
+  mutate(exp = -exp) %>%
+  rename(`D. Prod.` = prd,
+         `Exp.` = exp,
+         `Imp.` = imp,
          `N F.` = nfp)
   
 
-long_data <- pivot_longer(a, cols = c(`Dom.`, `Exp.`, `Imp.`, `N F.`), 
+long_data <- pivot_longer(a, cols = c(`D. Prod.`, `Exp.`, `Imp.`, `N F.`), 
                           names_to = "variable", values_to = "value")
 
 
@@ -54,7 +65,7 @@ p <- ggplot(long_data, aes(x = variable, y = value, fill = variable)) +
         legend.title = element_blank(),
         legend.position = "none")  # Make the panel borders thicker
 
-ggsave(filename = "plots/irwin-comparison.png", plot = p, width = 10, height = 12, dpi = 300)
+ggsave(filename = "plots/irwin-comparison-v2.png", plot = p, width = 10, height = 12, dpi = 300)
 
 
 
@@ -126,7 +137,6 @@ for (i in 8:13) {
 
 ### Global net footprint of countries ###
 library(scales)
-library(RColorBrewer)
 
 results3f1 <- s3read_using(FUN = data.table::fread,
                     object = paste(set_wd3,"/net-footprint-countries.rds",sep=""),
