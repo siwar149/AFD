@@ -1,10 +1,10 @@
 
-bucket1 <- "projet-esteem"
-bucket2 <- "siwar"
-
-set_wd1 <- "Gloria/matrices"
-set_wd2 <- "data/Gloria"
-set_wd3 <- "data/bio/rds"
+# bucket1 <- "projet-esteem"
+# bucket2 <- "siwar"
+# 
+# set_wd1 <- "Gloria/matrices"
+# set_wd2 <- "data/Gloria"
+# set_wd3 <- "data/bio/rds"
 
 ## Get the nSTAR intensity vector
 #score <- s3read_using(FUN = readRDS,

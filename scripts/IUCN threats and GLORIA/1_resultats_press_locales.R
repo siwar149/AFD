@@ -5,10 +5,10 @@ library(dplyr)
 library(tidyr)
 library(readxl)
 
-#setwd(dir="/home/onyxia/work/R_light/")
+setwd("~/projects/AFD")
 
-bucket = "siwar"
-set_wd <- "data/bio/rds"
+# bucket = "siwar"
+# set_wd <- "data/bio/rds"
 
 ####################################################################
 ### I-/ Trie des données redlist - Méthode d'Irwin et al. (2022) ###
@@ -19,14 +19,9 @@ set_wd <- "data/bio/rds"
 #rd_threats <- readRDS("data/rds/redlist_threats_to_species.rds") %>% filter(!id=="TRUE") %>% mutate(id = as.integer(id)) # data menaces IUCN de la redlist
 #rd_species <- readRDS("data/rds/Red_list_species.rds") # data espèces de la redlist
 
-rd_threats <- s3read_using(FUN = readRDS,
-             object = paste(set_wd,"/redlist_threats_to_species.rds",sep=""),
-             bucket = bucket, opts = list("region" = "")) %>% 
-             mutate(id = as.integer(id)) # data menaces IUCN de la redlist
+rd_threats <- readRDS('rds/redlist_threats_to_species.rds') %>% filter(!id=="TRUE") %>% mutate(id = as.integer(id)) # data menaces IUCN de la redlist
 
-rd_species <- s3read_using(FUN = readRDS,
-                           object = paste(set_wd,"/Red_list_species.rds",sep=""),
-                           bucket = bucket, opts = list("region" = ""))
+rd_species <- readRDS('rds/Red_list_species.rds')
 
 rd_source <- rd_species %>% 
              select(taxonid, scientific_name,category,class_name) %>%
@@ -145,39 +140,11 @@ rm(list = grep("^median", ls(), value = TRUE),rd)
 
 ### 1-/ Base de données des range des aires de répartition des espèces d'amphibiens et de mammifères terrestres
 
-#mammal_source <- read_excel("data/species_range/terrestrial_mammals_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name) # beaucoup de régions n'ont pas d'iso car zones de conflit entre plusieurs pays 
-#amphi_source1 <- read_excel("data/species_range/anura_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name)
-#amphi_source2 <- read_excel("data/species_range/Caudata_range_data.xlsx") %>% select(id_no,Surface_sp, iso3,name) %>% rename(Surf_sp=Surface_sp)
-#amphi_source3 <- read_excel("data/species_range/Gymnophiona_range_data.xlsx") %>% select(id_no,surf_sp, iso3,name) %>% rename(Surf_sp=surf_sp)
-#bird_source <- read_excel("data/species_range/Birds.xlsx") %>% select(sisid,Surf_sp,iso3,name) %>% rename(id_no=sisid)
-
-#species_range <- rbind(mammal_source,amphi_source1,amphi_source2,amphi_source3,bird_source)
-
-mammal_source <- s3read_using(FUN = read_excel,
-                           object = paste("data/bio/species_range","/terrestrial_mammals_range_data.xlsx",sep=""),
-                           bucket = bucket, opts = list("region" = "")) %>% 
-                           select(id_no,Surf_sp, iso3,name) # beaucoup de régions n'ont pas d'iso 
-                                                            #car zones de conflit entre plusieurs pays
-
-amphi_source1 <- s3read_using(FUN = read_excel,
-                              object = paste("data/bio/species_range","/anura_range_data.xlsx",sep=""),
-                              bucket = bucket, opts = list("region" = "")) %>% 
-                              select(id_no,Surf_sp, iso3,name)
-
-amphi_source2 <- s3read_using(FUN = read_excel,
-                              object = paste("data/bio/species_range","/Caudata_range_data.xlsx",sep=""),
-                              bucket = bucket, opts = list("region" = "")) %>% 
-                              select(id_no,Surface_sp, iso3,name) %>% rename(Surf_sp=Surface_sp)
-
-amphi_source3 <- s3read_using(FUN = read_excel,
-                              object = paste("data/bio/species_range","/Gymnophiona_range_data.xlsx",sep=""),
-                              bucket = bucket, opts = list("region" = "")) %>% 
-                              select(id_no,surf_sp, iso3,name) %>% rename(Surf_sp=surf_sp)
-
-bird_source <- s3read_using(FUN = read_excel,
-                              object = paste("data/bio/species_range","/Birds.xlsx",sep=""),
-                              bucket = bucket, opts = list("region" = "")) %>% 
-                              select(sisid,Surf_sp,iso3,name) %>% rename(id_no=sisid)
+mammal_source <- read_excel("data/species_range/terrestrial_mammals_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name) # beaucoup de régions n'ont pas d'iso car zones de conflit entre plusieurs pays 
+amphi_source1 <- read_excel("data/species_range/anura_range_data.xlsx") %>% select(id_no,Surf_sp, iso3,name)
+amphi_source2 <- read_excel("data/species_range/Caudata_range_data.xlsx") %>% select(id_no,Surface_sp, iso3,name) %>% rename(Surf_sp=Surface_sp)
+amphi_source3 <- read_excel("data/species_range/Gymnophiona_range_data.xlsx") %>% select(id_no,surf_sp, iso3,name) %>% rename(Surf_sp=surf_sp)
+bird_source <- read_excel("data/species_range/Birds.xlsx") %>% select(sisid,Surf_sp,iso3,name) %>% rename(id_no=sisid)
 
 species_range <- rbind(mammal_source,amphi_source1,amphi_source2,amphi_source3,bird_source)
 
@@ -194,12 +161,7 @@ match_pays_olson_gloria[match_pays_olson_gloria$pays_o == "CÃ´te d'Ivoire", "p
 species <- species_range %>% filter(id_no %in% STAR$taxonid) %>% drop_na(iso3) %>% group_by(id_no) #%>% mutate(range=Surf_sp/sum(Surf_sp))
 length(unique(species$id_no)) # On obtient 4 592 espèces 
 
-#label_IO <- as.data.frame(readRDS("data/rds/label_IO.rds")) %>% rename(iso=V1, country=V2, sector=V3)
-
-label_IO <- as.data.frame(s3read_using(FUN = readRDS,
-                            object = paste(set_wd,"/label_IO.rds",sep=""),
-                            bucket = bucket, opts = list("region" = ""))) %>%
-                            rename(iso=V1, country=V2, sector=V3)
+label_IO <- as.data.frame(readRDS("rds/label_IO.rds")) %>% rename(iso=V1, country=V2, sector=V3)
 
 species <- species %>% left_join(match_pays_olson_gloria, by=c("name"="pays_o"),relationship = "many-to-many") %>%
   select(-iso3,-name) %>% group_by(pays_g,id_no) %>% summarise(range=sum(Surf_sp)) %>% 
@@ -258,16 +220,9 @@ rm(biotope_source1,biotope_source2,corr_press,biotope_source)
 
 ### 1-/ Données satéllitaires de gloria en valeur absolues pour l'année 2019
 
-#Q <- readRDS("data/rds/QT_2019.rds") 
-#label_Q <- as.data.frame(readRDS("data/rds/label_Q.rds"))
+Q <- readRDS("rds/QT_2019.rds") 
+label_Q <- as.data.frame(readRDS("rds/label_Q.rds"))
 
-Q <- s3read_using(FUN = readRDS,
-                           object = paste(set_wd,"/QT_2019.rds",sep=""),
-                           bucket = bucket, opts = list("region" = ""))
-
-label_Q <- as.data.frame(s3read_using(FUN = readRDS,
-                                      object = paste(set_wd,"/label_Q.rds",sep=""),
-                                      bucket = bucket, opts = list("region" = "")))
 
 ### 2-/ Identifier les pressions analysables
 
@@ -354,9 +309,7 @@ press_locales <- setdiff(pressions_analysables, press_globales) # créer un vect
 
 # Attempt at incorporating the correspondence table between threats and sectors
 
-threats_sectors <- s3read_using(FUN = data.table::fread,
-                          object = paste(set_wd,"/threats-sectors.rds",sep=""),
-                          bucket = bucket, opts = list("region" = ""))
+threats_sectors <- readRDS("rds/threats-sectors.rds")
 
 
 threats_sectors <- threats_sectors  %>%
@@ -423,29 +376,15 @@ resultats_pressions_locales <- ex_w %>%
 #saveRDS(resultats_pressions_locales_press,"data/rds/resultats_pressions_locales_press.rds")
 
 
-# saveRDS(resultats_pressions_locales,"data/rds/resultats_pressions_locales.rds")
+saveRDS(resultats_pressions_locales,"rds/resultats_pressions_locales-v2.rds")
 
+saveRDS(result,"rds/result-v2.rds")
 
-s3write_using(x = as.data.table(resultats_pressions_locales_press), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/resultats_pressions_locales_press-v2.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
+saveRDS(r1_w_ex,"rds/r1-v2.rds")
 
-
-s3write_using(x = as.data.table(resultats_pressions_locales), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/resultats_pressions_locales-v2.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
-
-s3write_using(x = as.data.table(result), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/result-v2.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
-
-s3write_using(x = as.data.table(r1_w_ex), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/r1-v2.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
-
-# saveRDS(Q_abs,"data/rds/Q_abs.rds")
-# saveRDS(redlist_press,"data/rds/redlist_press.rds")
-# saveRDS(press_globales,"data/rds/press_globales.rds")
-# saveRDS(result,"data/rds/result.rds")
+# saveRDS(Q_abs,"rds/Q_abs.rds")
+# saveRDS(redlist_press,"rds/redlist_press.rds")
+# saveRDS(press_globales,"rds/press_globales.rds")
+# saveRDS(result,"rds/result.rds")
 # saveRDS(r1_w_ex,"data/rds/r1.rds")
  
