@@ -3,42 +3,26 @@
 # 0-/ Run le code : resultats_press_locales
 
 rm(list=ls())
+gc()
 library(dplyr)
 library(tidyr)
 library(readxl)
 
-set_wd <- "data/bio/rds"
-bucket <- "siwar"
+setwd('~/projects/AFD/')
 
-#Q_abs <- readRDS("data/rds/Q_abs.rds")
+# set_wd <- "data/bio/rds"
+# bucket <- "siwar"
 
-Q_abs <- s3read_using(FUN = readRDS,
-                      object = paste(set_wd,"/Q_abs.rds",sep=""),
-                      bucket = bucket, opts = list("region" = ""))
+Q_abs <- readRDS("rds/Q_abs.rds")
 
-#redlist_press <- readRDS("data/rds/redlist_press.rds")
+redlist_press <- readRDS("rds/redlist_press.rds")
 
-redlist_press <- s3read_using(FUN = readRDS,
-                              object = paste(set_wd,"/redlist_press.rds",sep=""),
-                              bucket = bucket, opts = list("region" = ""))
+press_globales <- readRDS("rds/press_globales.rds")
 
-#press_globales <- readRDS("data/rds/press_globales.rds")
+result <- readRDS("rds/result-v2.rds")
 
-press_globales <- s3read_using(FUN = readRDS,
-                              object = paste(set_wd,"/press_globales.rds",sep=""),
-                              bucket = bucket, opts = list("region" = ""))
+r1 <- readRDS("rds/r1-v2.rds")
 
-#result <- readRDS("data/rds/result.rds")
-
-result <- s3read_using(FUN = data.table::fread,
-                       object = paste(set_wd,"/result-v2.rds",sep=""),
-                       bucket = bucket, opts = list("region" = ""))
-
-#r1 <- readRDS("data/rds/r1.rds")
-
-r1 <- s3read_using(FUN = data.table::fread,
-                   object = paste(set_wd,"/r1-v2.rds",sep=""),
-                   bucket = bucket, opts = list("region" = ""))
 
 ###############################################################################
 ##### VIII-/ Pressions globales : Calcul du score de risque d'extinction  #####
@@ -65,7 +49,7 @@ result_g <- r1 %>%
   select(taxonid,Lfd_Nr,STARp) %>% 
   distinct() %>% 
   filter(Lfd_Nr %in% press_globales) %>%
-  left_join(Q_globales, by="Lfd_Nr") %>% 
+  left_join(Q_globales, by="Lfd_Nr", relationship = "many-to-many") %>% 
   mutate(score=STARp*part_press_g)
 
 rm(Q_abs,Q_globales,r1,redlist_press,redlist_press_globales,result,press_globales)
@@ -76,17 +60,13 @@ rm(result_g)
 
 resultats_pressions_globales <- resultats_dt[, .(score = sum(score)), by = .(taxonid, sector, country, iso)]
 
-#resultats_pressions_globales_press <- resultats_dt[, .(score = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
+resultats_pressions_globales_press <- resultats_dt[, .(score = sum(score)), by = .(Lfd_Nr, sector, country, iso)]
 
 rm(resultats_dt)
 
-s3write_using(x = as.data.table(resultats_pressions_globales_press), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/resultat_press_globales_press-v2.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
+saveRDS(resultats_pressions_globales_press, "rds/resultat_press_globales_press-v2.rds")
 
-s3write_using(x = as.data.table(resultats_pressions_globales), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd,"/resultat_press_globales-v2.rds",sep=""),
-              bucket = bucket, opts = list("region" = ""))
+saveRDS(resultats_pressions_globales, "rds/resultat_press_globales-v2.rds")
 
 # saveRDS(resultats_pressiTRUE# saveRDS(resultats_pressions_globales,"data/rds/resultat_press_globales.rds")
 

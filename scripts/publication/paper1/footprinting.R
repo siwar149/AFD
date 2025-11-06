@@ -12,17 +12,10 @@ library(ggrepel)
 # set_wd2 <- "data/Gloria"
 # set_wd3 <- "data/bio/rds"
 
+# upload the star value of all pressures
+star <- readRDS("rds/star_satellites.rds")
 
-star <- s3read_using(FUN = data.table::fread,
-                      object = paste(set_wd3,"/star_satellites.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = ""))
-
-setnames(star, as.character(star[1, ]))
-star <- star[-1, ]
-
-label_IO <- as.data.table(s3read_using(FUN = readRDS,
-                      object = paste(set_wd2,"/label_IO.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = "")))
+label_IO <- as.data.frame(readRDS("rds/label_IO.rds"))
 
 colnames(label_IO) <- c("iso", "country", "sector")
 
@@ -38,63 +31,52 @@ star <- label_IO %>%
 
 star[is.na(star)] <- 0
 
-summary(star[,5:108])
+#summary(star[,5:108])
 
 ## get the pressure name
-biotope <- s3read_using(FUN = data.table::fread,
-                        object = paste(set_wd2,"/biotope_threats.rds",sep=""),
-                        bucket = bucket2, opts = list("region" = ""))
-
-
+biotope <- readRDS("matrices/biotope_threats.rds")
 
 press <- as.numeric(colnames(star)[c(5:108)])
 
 biotope <- biotope[which(biotope$Lfd_Nr %in% press),]
 
-pressures <- biotope %>%
-  select(-threat) %>%
-  unique()
-
-pressures
-
 # fixing some values
 biotope[Lfd_Nr %in% c(68:72), pressure := paste0(pressure, " (Land use)")]
 biotope[Lfd_Nr %in% c(80:84), pressure := paste0(pressure, " (PDF)")]
 
+pressures <- biotope %>%
+  select(-threat) %>%
+  unique()
+
+
+
 #loading output data
-x <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd1,"/x_2019.rds",sep=""),
-                  bucket = bucket1, opts = list("region" = ""))
+x <- readRDS(paste0(path,"X/X_2019.rds"))
 
 x <- x + 0.0001 # No data on Yemen's output
 
 star <- star[, 5:108]
 
-e <- star[, lapply(.SD, function(col) col / x[[1]])]
+### Find the top 10 pressures
+t10 <- names(sort(colSums(star), decreasing = T)[1:10])
+pressures[pressures$Lfd_Nr %in% t10,]
 
+e <- t(t(star) / x)
+
+
+path <- '/mnt/nfs_fineprint/tmp/gloria/v059-compiled/'
 # loading final demand and leontief matrix
-FD <- s3read_using(FUN = data.table::fread,
-                   object = paste(set_wd1,"/FD_2019.rds",sep=""),
-                   bucket = bucket1, opts = list("region" = ""))
+FD <- readRDS(paste0(path,"Y/Y_2019.rds"))
 
-label_FD <- s3read_using(FUN = data.table::fread,
-                   object = paste("Gloria/labels/label_FD.rds",sep=""),
-                   bucket = bucket1, opts = list("region" = ""))
+label_FD <- readRDS(paste0("rds/label_FD.rds"))
 
 colnames(label_FD) <- c("iso", "country", "sector")
 
-L <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd1,"/L_2019.rds",sep=""),
-                  bucket = bucket1, opts = list("region" = ""))
-
-
-L <- as.matrix(L)
+L <- readRDS(paste0(path,"L/L_2019.rds"))
 
 f <- rowSums(FD)
 
-sr <- s3read_using(FUN = data.table::fread,
-                   object = paste(set_wd3,"/score_pays-v3.rds",sep=""),
-                   bucket = bucket2, opts = list("region" = ""))
+sr <- readRDS("rds/score_pays.rds")
 
 sr <- label_IO %>%
   left_join(sr, by = c("iso", "sector")) %>%
@@ -103,18 +85,42 @@ sr <- label_IO %>%
 
 e1 <- sr / x
 
+
 ##### Starting with the footprinting analysis
 
 # finding the pressure that exerts most impact
 countries <- unique(label_FD$country)
 
-pa <- c("2572", "2426", "2280", "72", "1915", "1842")
+FD <- readRDS(paste0(path, 'Y/Y_2019.rds'))
+
+agg <- function(x) { x <- as.matrix(x) %*% sapply(unique(colnames(x)),"==",colnames(x));  return(x) }
+
+eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
+         'FIN', 'FRA', 'DEU', 'GRC', 'HUN', 'IRL', 'ITA', 'LVA', 
+         'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
+         'SVN', 'ESP', 'SWE', 'XEU')
+
+l <- read_excel('~/projects/bio-carbon/Data/fd-labels.xlsx')
+cn <- regmatches(l$labels, gregexpr("\\([^()]+\\)", l$labels))
+cn <- sapply(cn, function(x) if(length(x) >= 2) x[2] else x[1])
+cn <- gsub("[()]", "", cn)
+
+eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
+         'FIN', 'FRA', 'DEU', 'GRC', 'HUN', 'IRL', 'ITA', 'LVA', 
+         'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
+         'SVN', 'ESP', 'SWE', 'XEU')
+
+f <- rowSums(FD)
+colnames(FD) <- cn
+FD <- agg(FD)
+f_eu <- rowSums(FD[,colnames(FD) %in% eu])
+
 
 results1 <- list()
 
-for (var in pa) {
+for (var in t10) {
   
-  E <- diag(e[[var]]) %*% L %*% diag(f)
+  E <- e[, var] * L
   
   for (country in countries) {
     
@@ -241,50 +247,69 @@ global_scores <- global_scores %>%
   left_join(pressures, by = c("pressure"="Lfd_Nr"))
 
 
+### MODIFYING THIS ###
+# calculate the environmental impact matrix (NO)
+path <- "/mnt/nfs_fineprint/tmp/gloria/v059-compiled/"
+FD <- readRDS(paste0(path, 'Y/Y_2019.rds'))
 
-# calculate the environmental impact matrix
-E <- diag(e1$score) %*% L %*% diag(f) 
+agg <- function(x) { x <- as.matrix(x) %*% sapply(unique(colnames(x)),"==",colnames(x));  return(x) }
 
+eu <-  c('AUT', 'BEL', 'BGR', 'HRV', 'CYP', 'CZE', 'DNK', 'EST',
+         'FIN', 'FRA', 'DEU', 'GRC', 'HUN', 'IRL', 'ITA', 'LVA', 
+         'LTU', 'LUX', 'MLT', 'NLD', 'POL', 'PRT', 'ROU', 'SVK', 
+         'SVN', 'ESP', 'SWE', 'XEU')
+
+cn <- regmatches(l$labels, gregexpr("\\([^()]+\\)", l$labels))
+cn <- sapply(cn, function(x) if(length(x) >= 2) x[2] else x[1])
+cn <- gsub("[()]", "", cn)
+
+colnames
 
 # calculate net footprint of each sector
 sectors <- unique(label_IO$NACE)
 
-sectoral_fp <- list()
+pr <- data.table()
 
 # Loop over each country
-for (sector in sectors) {
+for (var in t10) {
+  mp <- as.numeric(t(e[,var]) %*% L)
   
-  # Indices of rows/columns for the current country in label_IO and label_FD
-  sec <- which(label_IO$NACE == sector)
+  fp <- mp * f
   
-  # Indices of rows/columns for other countries in label_IO and label_FD
-  nsec <- which(label_IO$NACE != sector)
-  
-  
-  # Calculate fdom, fexp, and fimp
-  fint <- sum(sr[sec,])
-  fout <- sum(rowSums(E[sec,nsec]))
-  finp <- sum(colSums(E[nsec,sec]))
-  
-  # Store the results in a data.table row
-  sectoral_fp[[length(sectoral_fp) + 1]] <- data.table(
-    sector = sector,
-    fint = as.numeric(fint),
-    fout = as.numeric(fout),
-    finp = as.numeric(finp)
-  )
-  
+  pr <- cbind(pr,fp)
 }
 
-sfp <- rbindlist(sectoral_fp)
+colnames(pr) <- t10
 
-sfp <- sfp %>%
-  mutate(nfp = fint + finp - fout)
+pr <- cbind(label_IO, pr)
+
+spc <- pr %>% group_by(NACE) %>%
+  summarise(across(where(is.numeric), ~ sum(.x, na.rm = TRUE)), .groups =  'drop') %>%
+  pivot_longer(-NACE) %>%
+  group_by(name) %>%
+  mutate(value = value / sum(value) * 100) %>%
+  ungroup()
+
+# general STAR
+mp <- as.numeric(t(e1$score) %*% L)
+fp <- mp * f
+w <- cbind(label_IO, fp) %>%
+  group_by(NACE) %>%
+  summarise(fp = sum(fp), .groups = 'drop') %>%
+  pivot_longer(-NACE) %>%
+  mutate(value = value / sum(value) * 100)
 
 
-s3write_using(x = as.data.table(sfp), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd3,"/sector_pressures-1.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+#### check specifics of food and beverage ###
+w1 <- cbind(label_IO, fp) %>% group_by(sector, NACE) %>% summarise(fp = sum(fp), .groups = 'drop') %>%
+  pivot_longer(-c(sector,NACE)) %>% mutate(value = value / sum(value) * 100)
+###
+
+w <- w %>% mutate(name = 'Total STAR score')
+
+spc <- rbind(spc,w)
+
+saveRDS(spc, "rds/sector_pressures-1.rds")
 
 
 # Pressure scores
@@ -309,6 +334,17 @@ s3write_using(x = as.data.table(results2_pressures), FUN = data.table::fwrite, n
 
 
 
+# Aggregate the final demand vectors for each country
+agg <- function(x) { x <- as.matrix(x) %*% sapply(unique(colnames(x)),"==",colnames(x));  return(x) }
+
+
+l <- read_excel('~/projects/bio-carbon/Data/fd-labels.xlsx')
+cn <- regmatches(l$labels, gregexpr("\\([^()]+\\)", l$labels))
+cn <- sapply(cn, function(x) if(length(x) >= 2) x[2] else x[1])
+cn <- gsub("[()]", "", cn)
+
+colnames(FD) <- cn
+FD <- agg(FD)
 
 
 ## Calculating net footprint of nSTAR for specific countries
@@ -318,7 +354,12 @@ cns <- c("USA", "CHN", "JPN", "DEU", "FRA", "GBR", "MDG",
         "TZA", "LKA", "PNG", "CRI", "CIV", "COL", "BRA",
         "IDN", "ECU", "PER", "MEX")
 
-countries <- unique(label_FD$country)
+countries <- colnames(FD)
+
+MP <- readRDS('rds/MP.rds')
+
+# getting the footprints
+s <- MP %*% FD
 
 # Initialize an empty list to store results
 results3 <- list()
@@ -327,22 +368,15 @@ results3 <- list()
 for (country in countries) {
   
   # Indices of rows/columns for the current country in label_IO and label_FD
-  cnt1 <- which(label_IO$country == country)
-  cnt2 <- which(label_FD$country == country)
+  cnt1 <- which(label_IO$iso == country)
   
   # Indices of rows/columns for other countries in label_IO and label_FD
-  ncnt1 <- which(label_IO$country != country)
-  ncnt2 <- which(label_FD$country != country)
-  
-    
-  # Extract the column of "e" corresponding to the current variable
-  e1_dom <- as.matrix(e1[cnt1,])
-  e1_ext <- as.matrix(e1[ncnt1,])
+  ncnt1 <- which(label_IO$iso != country)
     
   # Calculate fdom, fexp, and fimp
-  fdom <- sum(rowSums(E[cnt1,cnt1]))
-  fexp <- t(e1_dom) %*% L[cnt1,cnt1] %*% rowSums(FD[cnt1, ncnt2, with = FALSE])
-  fimp <- t(e1_ext) %*% L[ncnt1,ncnt1] %*% rowSums(FD[ncnt1, cnt2, with = FALSE])
+  fdom <- sum(s[cnt1, colnames(s) == country])
+  fexp <- sum(s[cnt1, colnames(s) != country])
+  fimp <- sum(s[ncnt1, colnames(s) == country])
     
   # Store the results in a data.table row
   results3[[length(results3) + 1]] <- data.table(
@@ -361,20 +395,18 @@ results3f <- rbindlist(results3)
 print(results3f)
 
 results3f <- results3f %>%
-  mutate(nfp = fdom - fexp + fimp)
+  mutate(nfp = fdom + fimp)
 
 results3f1 <- results3f %>%
   mutate(type = case_when(
-    fimp > fdom - fexp ~ "Net Importer",
-    fexp > fdom ~ "Net Exporter",
-    fdom > fimp - fexp ~ "Net Domestic Consumer"
+    fimp > fexp & fimp > fdom ~ "Importer",
+    fexp > fdom ~ "Exporter",
+    fdom > fimp ~ "Domestic"
   ))
 
 unique(results3f1$type)
 
-s3write_using(x = as.data.table(results3f1), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd3,"/net-footprint-countries-v2.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+saveRDS(results3f1, "rds/net-footprint-countries-v2.rds")
 
 
 

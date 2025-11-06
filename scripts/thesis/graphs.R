@@ -1,7 +1,7 @@
 ##### Make some graphs ####
 
 #install.packages("viridis")  # Install
-#library("viridis")           # Load
+library("viridis")           # Load
 install.packages("ggsci")
 library("ggsci")
 install.packages("mapproj")
@@ -10,17 +10,15 @@ library(RColorBrewer)
 
 
 
-bucket1 <- "projet-esteem"
-set_wd1 <- "Gloria/matrices"
+# bucket1 <- "projet-esteem"
+# set_wd1 <- "Gloria/matrices"
+# 
+# bucket2 <- "siwar"
+# set_wd2 <- "data/Gloria"
+# set_wd3 <- "data/bio/rds"
 
-bucket2 <- "siwar"
-set_wd2 <- "data/Gloria"
-set_wd3 <- "data/bio/rds"
 
-
-g <- s3read_using(FUN = data.table::fread,
-                        object = paste(set_wd2,"/g3_2_2019.rds",sep=""),
-                        bucket = bucket2, opts = list("region" = ""))
+g <- readRDS("matrices/g3_2_2019.rds")
 
 
 g0 <- g %>%
@@ -56,10 +54,10 @@ g1 <- g1 %>%
   mutate(nrevarx = -1 * revarx)
 
 
-p <- ggplot(g1, aes(x = country, y = nrevarx, fill = factor(sector))) +
+ggplot(g1, aes(x = country, y = nrevarx, fill = factor(abbr))) +
   geom_bar(stat = "identity", color = "black", alpha = 0.7) +
   labs(x = "", y = "(%) Output") +
-  scale_fill_manual(values = brewer_palette, name = "") +  # Use the 'Set3' palette
+  scale_fill_viridis_d(option = 'turbo', guide = guide_legend(nrow = 2)) +
   geom_vline(xintercept = 0, linetype = "dashed", size = 1.5) +
   coord_flip() +
   scale_y_continuous(limits = c(-1, 0.1), breaks = seq(-1, 0.1, by = 0.10)) +
@@ -68,42 +66,96 @@ p <- ggplot(g1, aes(x = country, y = nrevarx, fill = factor(sector))) +
     legend.position = "bottom",    # Position the legend at the bottom
     legend.key = element_blank(),  # Remove the legend keys (the little squares)
     legend.title = element_blank(),   # Customize legend title size and boldness
-    legend.text = element_text(size = 10),    # Customize legend text size and boldness
-    axis.text = element_text(size = 12, color = "black", face = "bold"),      # Make axis text larger and bold
-    axis.title = element_text(size = 14, face = "bold"),     # Make axis title larger and bold
+    legend.text = element_text(size = 12),    # Customize legend text size and boldness
+    axis.text = element_text(size = 12, color = "black", family = 'Computer Modern'),      # Make axis text larger and bold
+    axis.title = element_text(size = 12, family = 'Computer Modern'),     # Make axis title larger and bold
     axis.ticks = element_line(color = "black", size = 1)    # Make axis ticks thicker and darker
 
   )
 
-ggsave("plots/1per_cent_schock-v2.png", plot = last_plot(), width = 11, height = 6, units = "in", dpi = 300)
+ggplot2::ggsave(plot = last_plot(), bg = "#ffffff",
+                filename = "./plots/FIG4-shock-econ.png",
+                width = 240, height = 140, units = "mm", scale = 1)
+
 
 
 ### Financial graphs ###
-fg <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/g3_3_2019.rds",sep=""),
-                  bucket = bucket2, opts = list("region" = ""))
+fg <- readRDS("matrices/g3_3_2019.rds")
+
+fg <- fg %>% mutate(dx = ipt1 *100 - R24_WM)
 
 fg <- fg %>%
-  select(country, sector, abvarx, year, vaript)
+  select(country, sector, abvarx, vaript, dx)
 
 anomalies <- which(fg$vaript < 0 | fg$vaript > 0.05)
 
-bach <- s3read_using(FUN = data.table::fread,
-                   object = paste(set_wd2,"/g3_3_2019.rds",sep=""),
-                   bucket = bucket2, opts = list("region" = ""))
+bach <- readRDS("matrices/g3_3_2019.rds")
 
 bach <- bach %>%
-  select(country, sector, abvarx, year, I83_WM, I10_WM, I1_WM, R24_WM, ipt1, vaript)
+  select(country, sector, abvarx, I83_WM, I10_WM, I1_WM, R24_WM, ipt1, vaript)
 
 bach <- bach[anomalies,]
 
 bach <- bach %>%
   mutate(ipt0 = (I83_WM + I10_WM)*10^-2,
-         vaript1 = (ipt1 - ipt0)/(ipt0)*100)
+         dx = ipt1 - ipt0)
 
-fg$vaript[anomalies] <- bach$vaript1 # fix negative values
+fg$dx[anomalies] <- bach$dx # fix negative values
 
-summary(fg$vaript)
+summary(fg$dx)
+
+# new graph
+fg1 <- fg %>%
+  group_by(country) %>%
+  mutate(revarx= abs(dx) / sum(dx)) %>%
+  ungroup()
+
+fg1 <- fg1 %>%
+  select(country, sector, revarx) %>%
+  group_by(country) %>%
+  arrange(desc(revarx)) %>%
+  mutate(revarx = ifelse(row_number() == 6, sum(revarx[row_number() >= 6]), revarx)) %>%
+  mutate(sector = ifelse(row_number() == 6, "X", sector)) %>%
+  filter(row_number() <= 6) %>%
+  ungroup()
+
+n_s <- read_excel("data/NACE.xlsx", sheet = "Feuil1")
+
+fg1 <- fg1 %>%
+  left_join(n_s, by = c("sector"="nace"))
+
+iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
+
+label_IO <- as.data.table(readRDS("rds/label_IO.rds"))
+
+fg1 <- fg1 %>%
+  left_join(iso, by = c('country'='eu')) %>%
+  left_join(unique(label_IO[,c(1,2)]), c('iso'='V1'))
+
+ggplot(fg1, aes(x = V2, y = revarx, fill = factor(abbr))) +
+  geom_bar(stat = "identity", color = "black", alpha = 0.7) +
+  labs(x = "", y = "(%)") +
+  scale_fill_viridis_d(option = 'turbo', guide = guide_legend(nrow = 2)) +
+  geom_vline(xintercept = 0, linetype = "dashed", size = 1.5) +
+  coord_flip() +
+  scale_y_continuous(limits = c(0, 1.1), breaks = seq(0, 1.1, by = 0.10)) +
+  theme_classic() +
+  theme(
+    legend.position = "bottom",    # Position the legend at the bottom
+    legend.key = element_blank(),  # Remove the legend keys (the little squares)
+    legend.title = element_blank(),   # Customize legend title size and boldness
+    legend.text = element_text(size = 12),    # Customize legend text size and boldness
+    axis.text = element_text(size = 12, color = "black", family = 'Computer Modern'),      # Make axis text larger and bold
+    axis.title = element_text(size = 12, family = 'Computer Modern'),     # Make axis title larger and bold
+    axis.ticks = element_line(color = "black", size = 1)    # Make axis ticks thicker and darker
+  )
+
+ggplot2::ggsave(plot = last_plot(), bg = "#ffffff",
+                filename = "./plots/FIG5-shock-fin.png",
+                width = 240, height = 140, units = "mm", scale = 1)
+
+
+
 
 iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
 
@@ -153,13 +205,9 @@ ggsave(filename = "plots/fin_exp_tot.png", plot = p, width = 15, height = 9, dpi
 
 
 ### Financial exposure by nSTAR footprint per country
-Teu <- s3read_using(FUN = data.table::fread,
-                    object = paste(set_wd2,"/Teu.rds",sep=""),
-                    bucket = bucket2, opts = list("region" = ""))
+Teu <- readRDS("rds/Teu3.rds")
 
-label_IO <- s3read_using(FUN = data.table::fread,
-                         object = "Gloria/labels/label_IO.rds",
-                         bucket = bucket1, opts = list("region" = ""))
+label_IO <- as.data.frame(readRDS("rds/label_IO.rds"))
 
 colnames(label_IO) <- c("iso", "country", "sector")
 
@@ -220,7 +268,7 @@ ggsave(filename = "plots/exposure_ind.png", plot = p, width = 10, height = 12, d
 ### Exposure graph with Teu1
 iso <- read_excel("data/iso.xlsx", sheet = "Sheet1")
 
-g1 <- g1 %>% # go get this data from the financial script
+g1 <- g1 %>%  # GO GET THIS DATA FROM THE FINANCE SCRIPT
   left_join(iso, by = c("country"="eu"))
 
 Teu2 <- Teu1 %>%
@@ -240,7 +288,7 @@ Teu2 <- Teu1 %>%
   select(country, exposure)
 
 
-p <- ggplot(Teu2, aes(x = country, y = exposure)) +
+ggplot(Teu2, aes(x = country, y = exposure)) +
   geom_bar(stat = "identity", color = "black", fill = "navy", alpha = 0.7) +
   theme_bw() +
   theme(
@@ -259,7 +307,7 @@ data <- data.frame(
 )
 
 
-p <- ggplot(data, aes(x = country, y = exposure)) +
+ggplot(data, aes(x = country, y = exposure)) +
   # Bar for exposure
   geom_bar(stat = "identity", fill = "navy", color = "black") +
   # Transparent rectangle up to 100 with dashed border
@@ -268,19 +316,19 @@ p <- ggplot(data, aes(x = country, y = exposure)) +
             fill = NA, color = "black", linetype = "dashed") +
   coord_flip() +
   # Axis labels and plot title
-  labs(x = "Country", y = "(%) National financial assets", title = "Exposure") +
+  labs(x = "Country", y = "(%) National financial assets", title = "") +
   # Set y-axis limit
   ylim(0, 100) +
-  theme_bw() +
+  theme_linedraw() +
   theme(
-    plot.title = element_text(size = 14, face = "bold"),
-    panel.border = element_rect(color = "black", size = 2),  # Thicker plot border
-    axis.title = element_text(size = 14, face = "bold"),     # Larger and bold axis titles
-    axis.text = element_text(size = 12, face = "bold")       # Larger and bold axis text
+    plot.title = element_blank(),
+    axis.title = element_text(size = 12, family = "Computer Modern"),     # Larger and bold axis titles
+    axis.text = element_text(size = 12, family = "Computer Modern")       # Larger and bold axis text
   )
 
-ggsave(filename = "plots/exposure_tot.png", plot = p, width = 6, height = 4, dpi = 300)
-
+ggplot2::ggsave(plot = last_plot(), bg = "#ffffff",
+                filename = "./plots/FIG3-exposure-tot.png",
+                width = 240, height = 140, units = "mm", scale = 1)
 
 
 

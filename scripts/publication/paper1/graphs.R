@@ -3,17 +3,23 @@ gc()
 
 
 install.packages("mapproj")
-library("mapproj")
-library("tidyr")
+library(mapproj)
+library(tidyr)
+library(ggplot2)
+library(WDI)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(sf)
+library(viridis)
 library(RColorBrewer)
 
 
-bucket1 <- "projet-esteem"
-set_wd1 <- "Gloria/matrices"
-
-bucket2 <- "siwar"
-set_wd2 <- "data/Gloria"
-set_wd3 <- "data/bio/rds"
+# bucket1 <- "projet-esteem"
+# set_wd1 <- "Gloria/matrices"
+# 
+# bucket2 <- "siwar"
+# set_wd2 <- "data/Gloria"
+# set_wd3 <- "data/bio/rds"
 
 
 ## destroying irwin
@@ -138,116 +144,123 @@ for (i in 8:13) {
 ### Global net footprint of countries ###
 library(scales)
 
-results3f1 <- s3read_using(FUN = data.table::fread,
-                    object = paste(set_wd3,"/net-footprint-countries.rds",sep=""),
-                    bucket = bucket2, opts = list("region" = ""))
+results3f1 <- readRDS("rds/net-footprint-countries-v2.rds")
 
-world_nfp <- results3f1 %>%
-  distinct() %>%
-  left_join(match_pays_gloria_WM, by=c("country"="pays_g"))
+world <- ne_countries(scale = "medium", returnclass = "sf")
+world <- world %>% select(admin, adm0_a3,geometry)
+world <- world %>% left_join(results3f1[,c(1,5,6)], by = c("adm0_a3"="country"))
 
 
-map <- world_map %>%
-  left_join(world_nfp,by=c("region"="WM"))
+world <- world %>%
+  group_by(type) %>%
+  mutate(NFP_scaled = rescale(nfp)) %>%
+  ungroup()
 
 
 # Create the plot
-# Replace NA values in nfp with 0
-map <- map %>%
-  mutate(nfp = replace_na(nfp, 0))  # Replace NAs with 0
+ggplot() +
+  geom_sf(data = world,aes(fill = type, alpha = NFP_scaled)) +
+  scale_alpha(range = c(0.4, 1), guide = "none") +  # hide alpha legend
+  #coord_sf(crs = "+proj=robin") +
+  coord_sf(xlim = c(-180, 200), ylim = c(-60, 80)) +
+  scale_fill_viridis_d(name = "Footprint", option = "H", begin = 0.1) +
+  theme_void() +
+  theme(legend.position = "bottom",
+        legend.title.position = "top",
+        legend.background = element_rect(color = "black", size = 1),
+        legend.spacing = unit(1, "cm"),
+        legend.margin = margin(5, 5, 5, 5),
+        plot.margin = margin(-3,-2,-3,-1,"cm")
+  )# +
+  #guides(fill = guide_legend(nrow = 2))
 
 
-map$type[(map$region) == "Greenland"] <- NA
+ggsave(plot = last_plot(), bg = "#ffffff",
+       filename = "./plots/FIG2-world-net-footprint.png",
+       width = 240, height = 140, units = "mm", scale = 1)
 
-# Create the plot
-p <- ggplot() +
-  geom_polygon(data = world_map, aes(x = long, y = lat, group = group), 
-               color = "black", fill = NA, size = 0.1) +
-  
-  # Fill according to type and grade by nfp
-  geom_map(data = map, aes(map_id = region, fill = type, alpha = nfp), 
-           map = world_map) +
-  
-  # Define colors for each type
-  scale_fill_manual(values = c("Net Importer" = "darkred", "Net Domestic Consumer" = "darkblue", "Net Exporter" = "darkgreen"), 
-                    guide = "legend") +  # Keep the legend
-  # Adjust alpha for gradient effect based on nfp
-  scale_alpha_continuous(range = c(0.3, 1), 
-                         guide = "none") +  # Adjust alpha range as needed
-  
-  coord_map("moll") +
-  labs(fill = NULL, alpha = "nSTAR") +  # Remove fill legend title
-  
-  theme_bw() +
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        panel.grid = element_blank(),
-        panel.border = element_rect(color = "black", size = 2),  # Thicker plot frame
-        plot.title = element_text(hjust = 0.5),
-        legend.position = "bottom",   # Position legend at the bottom
-        legend.title = element_blank(), # Remove the legend title
-        legend.key.size = unit(1, "cm"))  # Adjust legend key size if needed
 
-# Display the plot
-print(p)
+# Analyse specific countries
+cns <- c('CHN', 'MDG', 'ARG', 'URY', 'PRY', 'NZL', 'TKM', 'UZB', 'GEO', 'MNG')
 
-ggsave(filename = "plots/world-net-footprint-2.png", plot = p, width = 12, height = 8, dpi = 300)
+#CHN
+a <- cbind(label_IO[label_IO$iso != cns[1],], s[which(label_IO$iso != cns[1]), cns[1]])
+sort(a[,4],T)[1] / sum(a[,4]) # 10% from brazilian soy
+
+# MDG
+a <- cbind(label_IO[label_IO$iso == cns[2],], s[which(label_IO$iso == cns[2]), cns[2]])
+sort(a[,4],T)[1] / sum(a[,4]) # 16% civil engineering   # 13% raising of cattle # 8% growing fruits and nuts
+
+#  ARG
+a <- cbind(label_IO[label_IO$iso == cns[3],], rowSums(s[which(label_IO$iso == cns[3]), colnames(s) != cns[3]]))
+sort(a[,4],T)[1] / sum(a[,4]) # Exports of 36% raising of animals, ss to agri # 11% soy # 10% maize
+
+#  URY
+a <- cbind(label_IO[label_IO$iso == cns[4],], rowSums(s[which(label_IO$iso == cns[4]), colnames(s) != cns[4]]))
+sort(a[,4],T)[1] / sum(a[,4]) # Exports of 38% forestry and logging # 18% leguminous crops # 7% raising cattle
+
+# PRY
+a <- cbind(label_IO[label_IO$iso == cns[5],], rowSums(s[which(label_IO$iso == cns[5]), colnames(s) != cns[5]]))
+sort(a[,4],T)[1] / sum(a[,4]) # Exports of 36% leguminous crops # 9% cattle # 7% maize
+
+#NZL 
+a <- cbind(label_IO[label_IO$iso != cns[6],], s[which(label_IO$iso != cns[6]), cns[6]])
+sort(a[,4],T)[1] / sum(a[,4]) # 10% from brazilian soy
+
+# TKM
+a <- cbind(label_IO[label_IO$iso == cns[7],], rowSums(s[which(label_IO$iso == cns[7]), colnames(s) != cns[7]]))
+sort(a[,4],T)[1] / sum(a[,4]) # Exports of 19% fibre crops # 14% transport via pipeline # 11% distribution of gas through pipes
+
+# UZB
+a <- cbind(label_IO[label_IO$iso == cns[8],], rowSums(s[which(label_IO$iso == cns[8]), colnames(s) != cns[8]]))
+sort(a[,4],T)[1] / sum(a[,4]) # Exports of 22% fibre crops # 15% fruits and nuts # 10% raising of animals, ss to agri
 
 
 
 
 # net footprint of sectors barplot
-sfp <- s3read_using(FUN = data.table::fread,
-                     object = paste(set_wd3,"/sector_pressures-1.rds",sep=""),
-                     bucket = bucket2, opts = list("region" = ""))
+sfp <- readRDS("rds/sector_pressures-1.rds")
 
 
-sfp1 <- sfp %>%
-  as.data.table() %>%
-  mutate(shr = nfp / sum(nfp) * 100) %>%
-  select(sector, nfp, shr) %>%
-  arrange(desc(shr)) %>%
-  rename(`Total Net Fooprint (nSTAR)` = shr)
+sfp <- sfp %>%
+  group_by(name) %>%
+  arrange(desc(value)) %>%
+  mutate(value = ifelse(row_number() == 7, sum(value[row_number() >= 7]), value)) %>%
+  mutate(NACE = ifelse(row_number() == 7, "X", NACE)) %>%
+  filter(row_number() <= 7) %>%
+  ungroup()
 
-sfp1 <- sfp1[1:7, c(1,3)]
-sfp1[7,1] <- "X"
-sfp1[7,2] <- 100 - sum(sfp1[-7, 2])
-
-
-results2_pressures <- s3read_using(FUN = data.table::fread,
-                     object = paste(set_wd3,"/pressures_per_sector.rds",sep=""),
-                     bucket = bucket2, opts = list("region" = ""))
-
-rp <- results2_pressures %>%
-  mutate(across(where(is.numeric), ~ . / sum(.) * 100))
-
-sfp1 <- sfp1 %>%
-  left_join(rp, by = c("sector"="NACE")) %>%
-  mutate(across(where(is.numeric), ~ ifelse(is.na(.), 100 - sum(., na.rm = TRUE), .)))
 
 n_s <- read_excel("data/NACE.xlsx", sheet = "Feuil1")
 
-sfp1 <- sfp1 %>%
-  left_join(n_s, by = c("sector"="nace"))
+sfp <- sfp %>%
+  left_join(n_s[,c(1,3)], by = c("NACE"="nace"))
 
-sfp1 <- sfp1 %>%
-  select(-sector) %>%
-  rename(sector = sector.y)
+biotope <- readRDS("matrices/biotope_threats.rds")
+biotope[Lfd_Nr %in% c(68:72), pressure := paste0(pressure, " (Land use)")]
+biotope[Lfd_Nr %in% c(80:84), pressure := paste0(pressure, " (PDF)")]
+
+pressures <- biotope %>%
+  select(-threat) %>%
+  unique() %>%
+  mutate(Lfd_Nr = as.character(Lfd_Nr))
+
+sfp <- sfp %>% left_join(pressures, by = c('name'='Lfd_Nr'))
+
+sfp[is.na(sfp)] <- 'Total STAR score'
+
+sfp <- sfp %>% select(abbr, pressure, value)
+
 
 # Just making a rotated barplot
 
-# Use pivot_longer to reshape the dataset to long format
-sfp1_long <- sfp1 %>%
-  pivot_longer(cols = -sector, names_to = "variable", values_to = "value")
-
 # Create the horizontal barplot
-p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
+sfp %>% filter(pressure != 'Pastures (PDF)') %>%
+  ggplot(aes(x = pressure, y = value, fill = abbr)) +
   geom_bar(stat = "identity", position = position_fill(reverse = T)) +
   coord_flip() +  # This flips the plot to make it horizontal
-  scale_fill_brewer(palette = "Dark2", guide = guide_legend(nrow = 4)) +  # Use a dark color palette
+  scale_fill_viridis_d(option = 'turbo', guide = guide_legend(ncol = 5, nrow = 3)) +
+  #scale_fill_brewer(palette = "Dark2", guide = guide_legend(nrow = 4)) +  # Use a dark color palette
   labs(x = "Pressure", y = "(%)") +  # No plot title or legend title
   scale_y_continuous(labels = function(x) x * 100) +
   theme_minimal() +  # A cleaner, minimal theme with white background
@@ -255,16 +268,18 @@ p <- ggplot(sfp1_long, aes(x = variable, y = value, fill = sector)) +
     panel.background = element_rect(fill = "white", colour = "white"),  # White background
     plot.background = element_rect(fill = "white", colour = "white"),  # White plot background
     text = element_text(color = "black"),  # Text color in black
-    axis.text = element_text(color = "black", size = 14, face = "bold"),  # Axis values bold & larger
-    axis.title = element_text(size = 16, face = "bold"),  # Axis labels bold & larger
+    axis.text = element_text(color = "black", size = 12, family = 'Computer Modern'),  # Axis values bold & larger
+    axis.title = element_text(size = 12, family = 'Computer Modern'),  # Axis labels bold & larger
     legend.background = element_rect(fill = "white", colour = "white"),  # White legend background
-    legend.text = element_text(color = "black", size = 12),  # Legend text bold & larger
+    legend.text = element_text(color = "black", size = 12, family = 'Computer Modern'),  # Legend text bold & larger
     legend.title = element_blank(),  # Remove legend title
     legend.position = "bottom",
     plot.title = element_blank()  # Remove plot title
   )
 
-ggsave(filename = "plots/pressure-barplot.png", plot = p, width = 13, height = 7, dpi = 300)
+ggplot2::ggsave(plot = last_plot(), bg = "#ffffff",
+                filename = "./plots/FIG1-pressure-barplot.png",
+                width = 240, height = 140, units = "mm", scale = 1)
 
 
 # Show the plot

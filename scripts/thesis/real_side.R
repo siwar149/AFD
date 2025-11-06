@@ -7,13 +7,14 @@ library("tidyr")
 
 ### setting bucket and all
 
-bucket1 <- "projet-esteem"
-bucket2 <- "siwar"
+# bucket1 <- "projet-esteem"
+# bucket2 <- "siwar"
+# 
+# set_wd1 <- "Gloria/matrices"
+# set_wd2 <- "data/Gloria"
+# set_wd3 <- "data/bio/rds"
 
-set_wd1 <- "Gloria/matrices"
-set_wd2 <- "data/Gloria"
-set_wd3 <- "data/bio/rds"
-
+path <- '/mnt/nfs_fineprint/tmp/gloria/v059-compiled/'
 
 ### Calculate the nSTAR footprint of EU
 
@@ -27,20 +28,15 @@ eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
          "LUX", "POL", "PRT", "SVK")
 
 # load the relevant matrices and vectors
-label_IO <- as.data.table(s3read_using(FUN = readRDS,
-                                       object = paste(set_wd2,"/label_IO.rds",sep=""),
-                                       bucket = bucket2, opts = list("region" = "")))
+label_IO <- as.data.frame(readRDS("rds/label_IO.rds"))
 
 colnames(label_IO) <- c("iso", "country", "sector")
 
-mcf3 <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/mcf3.rds",sep=""),
-                  bucket = bucket2, opts = list("region" = ""))
+mcf3 <- readRDS("rds/mcf3.rds")
 
-f <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd2,"/f_2019.rds",sep=""),
-                  bucket = bucket2, opts = list("region" = ""))
+f <- readRDS(paste0(path, 'Y/Y_2019.rds'))
 
+f <- rowSums(f)
 
 # Actual nSTAR consumption based footprint
 t <- mcf3 * f
@@ -55,8 +51,7 @@ summary(mcf3[in_eu1,])
 tis <- t
 
 tis[not_eu] <- 0
-tis[tis$V1 < 0,] <- 0
-t[t$V1 < 0,] <- 0
+tis[tis < 0] <- 0
 
 # decomposing the shock
 dt <- -0.01 * sum(tis) * (tis / sum(tis)) # the mistake was here
@@ -69,26 +64,19 @@ df <- dt / mcf3
 summary(abs(df[in_eu1]) / f[in_eu1])
 
 # Calculate variation in output
-L <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd1,"/L_2019.rds",sep=""),
-                  bucket = bucket1, opts = list("region" = ""))
+L <- readRDS(paste0(path, "L/L_2019.rds"))
 
-df <- as.matrix(df)
 df <- as.numeric(df)
 
-dx <- as.matrix(L) %*% df
+dx <- L %*% df
 
-x <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd1,"/x_2019.rds",sep=""),
-                  bucket = bucket1, opts = list("region" = ""))
+x <- readRDS(paste0(path, "X/X_2019.rds"))
 
 x <- x + 0.0001 # No data on Yemen's output
 
 summary(abs(dx[in_eu1]) / x[in_eu1])
 
-#s3write_using(x = as.data.table(dx), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd2,"/dx3.rds",sep=""),
-#              bucket = bucket2, opts = list("region" = ""))
+saveRDS(dx,"matrices/dx3.rds")
 
 f <- as.data.table(f)
 
@@ -100,10 +88,7 @@ g <- cbind(label_IO, g)
 
 g <- g[in_eu1,]
 
-#s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-#              object = paste(set_wd2,"/g3_2019.rds",sep=""),
-#              bucket = bucket2, opts = list("region" = ""))
-
+saveRDS(g,"matrices/g3_2019.rds")
 
 ### Add a column with the NACE sectors
 nace <- read_excel("data/NACE-Gloria.xlsx", sheet = "Feuil1")
@@ -120,7 +105,7 @@ g <- g %>%
     dx = sum(dx),
     x = sum(x),
     df = sum(df),
-    f = sum(f)
+    f = sum(f), .groups = 'drop'
   )
 
 g <- g %>%
@@ -128,9 +113,7 @@ g <- g %>%
          abvarf= abs(df) / f * 100)
 
 
-s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g3_1_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+saveRDS(g, "matrices/g3_1_2019.rds")
 
 
 # Keeping only the countries in the BACH data
@@ -146,9 +129,7 @@ sample <- unique(bach$country)
 g <- g[which(g$eu %in% sample), ]
 
 
-s3write_using(x = as.data.table(g), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/g3_2_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+saveRDS(g,"matrices/g3_2_2019.rds")
 
 rm(list = ls())
 gc()

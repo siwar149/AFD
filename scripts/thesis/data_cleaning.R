@@ -11,20 +11,19 @@
 #                      object = paste(set_wd3,"/score_pays.rds",sep=""),
 #                      bucket = bucket2, opts = list("region" = ""))
 
-score3 <- s3read_using(FUN = data.table::fread,
-                      object = paste(set_wd3,"/score_pays-v3.rds",sep=""),
-                      bucket = bucket2, opts = list("region" = ""))
+library(Matrix)
+
+path <- '/mnt/nfs_fineprint/tmp/gloria/v059-compiled/'
+
+score3 <- readRDS("rds/score_pays.rds")
 
 
-x <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd1,"/x_2019.rds",sep=""),
-                  bucket = bucket1, opts = list("region" = ""))
+x <- readRDS(paste0(path, "X/X_2019.rds"))
 
-x <- x + 0.0001 # No data on Yemen's output
+x <- x + 0.000001 # No data on Yemen's output   
 
-label_IO <- as.data.table(s3read_using(FUN = readRDS,
-                                       object = paste(set_wd2,"/label_IO.rds",sep=""),
-                                       bucket = bucket2, opts = list("region" = "")))
+label_IO <- as.data.frame(readRDS("rds/label_IO.rds"))
+
 
 colnames(label_IO) <- c("iso", "country", "sector")
 
@@ -34,19 +33,16 @@ colnames(label_IO) <- c("iso", "country", "sector")
 
 e3 <- label_IO %>%
   left_join(score3, by = c("iso", "sector")) %>%
-  mutate(score= if_else(is.na(score), 0.0001, score))
+  mutate(score= if_else(is.na(score), 0, score))
 
-e3 <- e3$score / x$x
+e3 <- e3$score / x
 
-s3write_using(x = as.data.table(e3), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/e3_2019.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+saveRDS(e3,"rds/e3_2019.rds")
 
 
 # Global demand vector
-f <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd1,"/FD_2019.rds",sep=""),
-                  bucket = bucket1, opts = list("region" = ""))
+f <- readRDS(paste0(path, "Y/Y_2019.rds"))
+
 
 f <- rowSums(f)
 
@@ -56,20 +52,18 @@ f <- rowSums(f)
 #              bucket = bucket2, opts = list("region" = ""))
 
 
-L <- s3read_using(FUN = data.table::fread,
-                  object = paste(set_wd1,"/L_2019.rds",sep=""),
-                  bucket = bucket1, opts = list("region" = ""))
+L <- readRDS(paste0(path, "L/L_2019.rds"))
 
 # compute vector with multipliers of consumption footprint
-mcf3 <- t(as.matrix(L)) %*% e3
+mcf3 <- t(L) %*% e3$score
 
-s3write_using(x = as.data.table(mcf3), FUN = data.table::fwrite, na = "", 
-              object = paste(set_wd2,"/mcf3.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+MP <- e3 * L
 
+saveRDS(mcf3, "rds/mcf3.rds")
+saveRDS(MP, 'rds/MP.rds')
 
 ### Flow matrix for world map
-T <- diag(e3) %*% as.matrix(L) %*% diag(f)
+T <- diag(e3$score) %*% L %*% diag(f)
 
 eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
          "LUX", "POL", "PRT", "SVK")
@@ -77,9 +71,7 @@ eu1 <- c("AUT", "BEL", "DEU", "ESP", "FRA", "HRV", "HUN", "ITA",
 in_eu1 <- which(label_IO$iso %in% eu1)
 
 
-s3write_using(x = as.data.table(T[,in_eu1]), FUN = data.table::fwrite, na = "", 
-              object = paste("data/Gloria/Teu3.rds",sep=""),
-              bucket = bucket2, opts = list("region" = ""))
+saveRDS(as(T[,in_eu1], 'dgeMatrix'), "rds/Teu3.rds")
 
 
 rm(list = ls())
